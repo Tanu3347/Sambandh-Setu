@@ -171,7 +171,7 @@ export default function HomeScreen({ navigation }: any) {
                 </View>
               </Card>
             ) : (
-              <Card><EmptyState icon="people-outline" title="No active connection yet" description="Accept a request or send interest to begin your journey." actionLabel="Find people" onAction={() => navigation.navigate('Connections')} /></Card>
+              <Card><EmptyState icon="people-outline" title="No active connection yet" description="Accept a request or send interest to begin your journey." actionLabel="Find people" onAction={() => navigation.navigate('Connections', { tab: 'discover' })} /></Card>
             )}
 
             {/* Needs Your Attention */}

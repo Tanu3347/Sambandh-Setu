@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import AppInput from '../../components/AppInput';
+import { changePasswordApi } from '../../services/api';
 import { S, SettingsScreenLayout } from '../../components/settings/SettingsUI';
 
 export default function ChangePasswordScreen({ navigation }: any) {
@@ -8,14 +9,24 @@ export default function ChangePasswordScreen({ navigation }: any) {
   const [next, setNext] = useState('');
   const [confirm, setConfirm] = useState('');
   const [done, setDone] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
 
   const tooShort = next.length > 0 && next.length < 8;
   const mismatch = confirm.length > 0 && confirm !== next;
   const valid = current.length > 0 && next.length >= 8 && confirm === next;
 
-  const submit = () => {
-    // TODO: call your backend here, then show success
-    setDone(true);
+  const submit = async () => {
+    setError('');
+    setBusy(true);
+    try {
+      await changePasswordApi(current, next);
+      setDone(true);
+    } catch (err: any) {
+      setError(err?.error?.message || err?.message || 'Failed to update password');
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -38,9 +49,10 @@ export default function ChangePasswordScreen({ navigation }: any) {
         {mismatch && <Text style={styles.error}>Passwords don't match</Text>}
 
         {done && <Text style={styles.success}>Password updated.</Text>}
+        {!!error && <Text style={[styles.error, { marginTop: 12 }]}>{error}</Text>}
 
-        <Pressable style={[styles.btn, !valid && styles.btnOff]} disabled={!valid} onPress={submit}>
-          <Text style={styles.btnText}>Update password</Text>
+        <Pressable style={[styles.btn, (!valid || busy) && styles.btnOff]} disabled={!valid || busy} onPress={submit}>
+          {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Update password</Text>}
         </Pressable>
       </ScrollView>
     </SettingsScreenLayout>

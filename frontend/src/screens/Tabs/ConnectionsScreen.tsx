@@ -135,7 +135,7 @@ export default function ConnectionsScreen({ navigation, route }: any) {
     ]);
 
   const q = query.trim().toLowerCase();
-  const filtered = q ? discover.filter((p) => `${p.name} ${p.location} ${p.profession}`.toLowerCase().includes(q)) : discover;
+  const filtered = q ? discover.filter((p) => `${p.name || ''} ${p.location || ''} ${p.profession || ''}`.toLowerCase().includes(q)) : discover;
   const recommended = filtered.slice(0, 5);
   const newProfiles = filtered.slice(5);
   const index = Math.max(recommended.findIndex((p) => p.id === selectedId), 0);
@@ -278,11 +278,11 @@ export default function ConnectionsScreen({ navigation, route }: any) {
                             <Text style={styles.heroName}>{p.name}, {p.age}</Text>
                             {p.verified && <Ionicons name="checkmark-circle" size={18} color={colors.primary} style={{ marginLeft: 6 }} />}
                           </View>
-                          <Text style={styles.heroSub}>{p.profession} · {p.location.split(',')[0]}</Text>
+                          <Text style={styles.heroSub}>{p.profession || 'Professional'} · {(p.location || 'India').split(',')[0]}</Text>
                           {!!p.education && (
                             <View style={styles.heroLine}><Ionicons name="school-outline" size={15} color={colors.muted} /><Text style={styles.heroLineText}>{p.education}</Text></View>
                           )}
-                          <View style={styles.heroLine}><Ionicons name="location-outline" size={15} color={colors.muted} /><Text style={styles.heroLineText}>{p.location}</Text></View>
+                          <View style={styles.heroLine}><Ionicons name="location-outline" size={15} color={colors.muted} /><Text style={styles.heroLineText}>{p.location || 'India'}</Text></View>
                           {!!p.bio && (
                             <View style={styles.quoteBox}>
                               <Text style={styles.quoteMark}>“</Text>

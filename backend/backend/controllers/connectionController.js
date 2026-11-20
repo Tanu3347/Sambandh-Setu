@@ -39,14 +39,15 @@ const withProfiles = async (connections) => {
 };
 
 const listActiveConnections = async (req, res) => {
-    const { status } = req.query;
-    if (status !== undefined && status !== "active") {
-        throw ApiError.badRequest("status must be active", [{ field: "status" }]);
+    const validStatuses = new Set(["active", "paused", "closed"]);
+    const status = req.query.status || "active";
+    if (!validStatuses.has(status)) {
+        throw ApiError.badRequest("status must be active, paused, or closed", [{ field: "status" }]);
     }
 
     const connections = await Connection.find({
         participants: req.user._id,
-        status: "active"
+        status
     })
         .populate("participants", "username firstName lastName")
         .sort({ createdAt: -1 });

@@ -33,6 +33,17 @@ app.set("trust proxy", 1);
 
 applyTrustProxy(app);
 
+// Request logger for visibility on backend terminal
+if (process.env.NODE_ENV !== "test") {
+    app.use((req, res, next) => {
+        const start = Date.now();
+        res.on("finish", () => {
+            console.log(`[HTTP] ${req.method} ${req.path} -> ${res.statusCode} (${Date.now() - start}ms)`);
+        });
+        next();
+    });
+}
+
 // Security headers run first. The API is consumed cross-origin by the web app,
 // so CORP is set to cross-origin while the rest of Helmet's defaults stay on.
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
@@ -68,7 +79,9 @@ app.get("/health/ready", readinessHandler);
 
 app.use("/auth", authIpLimiter, authEmailLimiter, authRoutes);
 app.use("/me", userRoutes);
+app.use("/users", userRoutes);
 app.use("/profiles", profileRoutes);
+app.use("/profile", profileRoutes);
 app.use("/discover", discoverRoutes);
 app.use("/requests", requestRoutes);
 app.use("/connections", connectionRoutes);

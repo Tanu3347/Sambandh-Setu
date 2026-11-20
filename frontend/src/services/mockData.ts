@@ -20,6 +20,7 @@ export function buildStages(current: StageKey) {
 export type Person = {
   id: string; name: string; age: number; location: string; profession: string; verified?: boolean; online?: boolean;
   education?: string; bio?: string; photo?: string; // photo: add an image URL when you have one
+  role?: string; city?: string; interests?: string[];
 };
 export type ReceivedRequest = Person & { time: string };
 export type SentRequest = Person & { status: string; time?: string };

@@ -5,13 +5,15 @@ const {
     listMessages,
     markMessagesRead,
     sendMessage,
-    setMuted
+    setMuted,
+    getChatProfile
 } = require("../controllers/chatController");
 
 const router = express.Router();
 
 router.use(requireAuth);
 router.get("/", listChats);
+router.get("/:chatId/profile", getChatProfile);
 router.get("/:chatId/messages", listMessages);
 router.post("/:chatId/messages", sendMessage);
 router.post("/:chatId/read", markMessagesRead);

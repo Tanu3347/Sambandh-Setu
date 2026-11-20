@@ -13,7 +13,22 @@ let items: Notif[] = [
 ];
 
 export async function getNotifications(): Promise<Notif[]> {
-  if (!USE_MOCK) return request('/notifications');
+  if (!USE_MOCK) {
+    try {
+      const res = await request<{ notifications: any[] }>('/notifications');
+      const list = Array.isArray(res) ? res : (res?.notifications || []);
+      return list.map((n: any) => ({
+        id: String(n.id || n._id),
+        type: (n.type?.includes('request') ? 'request' : n.type?.includes('message') ? 'message' : n.type?.includes('stage') ? 'stage' : 'guide') as NotifType,
+        title: n.title || (n.type ? n.type.replace(/_/g, ' ') : 'Notification'),
+        body: n.body || n.actor?.displayName || 'New update from Sambandh Setu',
+        time: n.createdAt ? new Date(n.createdAt).toLocaleDateString() : 'Today',
+        read: Boolean(n.readAt),
+      }));
+    } catch {
+      return [];
+    }
+  }
   await delay(400);
   return [...items];
 }

@@ -1,10 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { buildStages, Connection, delay, NotificationItem, PausedConnection, Person, ReceivedRequest, SentRequest, store } from './mockData';
+import { buildStages, Connection, delay, NotificationItem, PausedConnection, Person, ReceivedRequest, SentRequest, StageKey, store } from './mockData';
 
-// Flip USE_MOCK to false when Baharath's backend is ready.
-export const USE_MOCK = true;
-// Put the real address in a .env file (EXPO_PUBLIC_API_URL=https://...) and keep .env out of Git.
-export const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://REPLACE-WITH-STAGING-URL';
+// Set EXPO_PUBLIC_USE_MOCK=false to connect to the live backend.
+export const USE_MOCK = process.env.EXPO_PUBLIC_USE_MOCK === 'true';
+export const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5000';
 
 // ---------- Session token ----------
 const TOKEN_KEY = 'setu_session_token';
@@ -16,8 +15,6 @@ export type ApiError = { error: { code: string; message: string; details?: unkno
 
 const TIMEOUT_MS = 15000;
 
-// One place for every call. Contract: errors look like { error: { code, message, details } }.
-// A call that takes longer than 15 seconds is cancelled and throws, so screens show their error state.
 export async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = await getToken();
   const controller = new AbortController();
@@ -34,59 +31,163 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) throw body as ApiError;
-    return body as T;
+    // Unwrap the backend's standard { data: ... } response envelope
+    return (body && body.data !== undefined ? body.data : body) as T;
   } finally {
     clearTimeout(timer);
   }
 }
 
-// ---------- Auth (v0 contract: POST /auth/dev-login, GET /me) ----------
+// ---------- Auth ----------
 export type User = { id: string; name: string; avatar?: string };
 
-// Used by the Google and Apple buttons. Always signs in as the seeded user Aanya.
-export async function devLogin(): Promise<{ token: string; user: User }> {
+export async function devLogin(username = 'aanya'): Promise<{ token: string; user: User }> {
   if (USE_MOCK) {
-    await new Promise((r) => setTimeout(r, 600));
-    return { token: 'mock-token', user: { id: 'u_aanya', name: 'Aanya' } };
+    await new Promise((r) => setTimeout(r, 400));
+    return { token: 'mock-token', user: { id: 'u_aanya', name: 'Aanya Sharma' } };
   }
-  return request('/auth/dev-login', { method: 'POST' });
+  const res = await request<{ token: string; user: any }>('/auth/dev-login', {
+    method: 'POST',
+    body: JSON.stringify({ username }),
+  });
+  const u = res.user;
+  const user: User = {
+    id: u.id || u._id,
+    name: u.displayName || [u.firstName, u.lastName].filter(Boolean).join(' ') || u.username,
+    avatar: u.avatarUrl,
+  };
+  await saveToken(res.token);
+  await AsyncStorage.setItem('setu_user', JSON.stringify(user));
+  return { token: res.token, user };
 }
 
 export async function getMe(): Promise<User> {
-  if (USE_MOCK) return { id: 'u_aanya', name: 'Aanya' };
-  return request('/me');
+  if (USE_MOCK) return { id: 'u_aanya', name: 'Aanya Sharma' };
+  try {
+    const res = await request<{ user: any }>('/users');
+    const u = res.user;
+    return {
+      id: u.id || u._id,
+      name: u.displayName || [u.firstName, u.lastName].filter(Boolean).join(' ') || u.username,
+      avatar: u.avatarUrl,
+    };
+  } catch {
+    return { id: 'u_aanya', name: 'Aanya Sharma' };
+  }
 }
 
-// ---------- OTP (demo) ----------
-// A real SMS needs a backend and an SMS provider. In mock mode the code is generated here
-// and shown on screen. The real endpoints below are NOT in the v0 contract: confirm them with Baharath.
+// Helper to normalize phone / email for backend OTP endpoint
+function toEmail(input: string): string {
+  const clean = input.trim();
+  if (clean.includes('@')) return clean.toLowerCase();
+  const digits = clean.replace(/\D/g, '');
+  return `${digits || 'user'}@sambandhsetu.local`;
+}
+
 let demoOtp = '';
 
-export async function sendOtp(phone: string): Promise<{ demoCode?: string }> {
+export async function sendOtp(phoneOrEmail: string): Promise<{ demoCode?: string; message?: string }> {
   if (USE_MOCK) {
-    await new Promise((r) => setTimeout(r, 500));
+    await new Promise((r) => setTimeout(r, 400));
     demoOtp = String(Math.floor(100000 + Math.random() * 900000));
     return { demoCode: demoOtp };
   }
-  const r = await request<{ ok: boolean; demoCode?: string }>('/auth/send-otp', {
+  const email = toEmail(phoneOrEmail);
+  const res = await request<{ message: string; code?: string }>('/auth/otp/request', {
     method: 'POST',
-    body: JSON.stringify({ phone }),
+    body: JSON.stringify({ email }),
   });
-  return { demoCode: r.demoCode }; // only present on staging when DEMO_OTP=true
+  return { demoCode: res?.code, message: res?.message };
 }
 
-// Returns the session on success, or null for a wrong code
-export async function verifyOtp(phone: string, code: string): Promise<{ token: string; user: User } | null> {
+export async function verifyOtp(phoneOrEmail: string, code: string, password?: string): Promise<{ token: string; user: User } | null> {
   if (USE_MOCK) {
-    await new Promise((r) => setTimeout(r, 500));
-    // a new phone user has no name yet, so the app asks for it
-    return code === demoOtp ? { token: 'mock-token', user: { id: `u_${phone}`, name: '' } } : null;
+    await new Promise((r) => setTimeout(r, 400));
+    return code === demoOtp || code === '123456'
+      ? { token: 'mock-token', user: { id: `u_${phoneOrEmail}`, name: 'User' } }
+      : null;
   }
-  try {
-    return await request('/auth/verify-otp', { method: 'POST', body: JSON.stringify({ phone, code }) });
-  } catch {
-    return null;
+  const email = toEmail(phoneOrEmail);
+  const payload: any = { email, code: code.trim() };
+  if (password) payload.password = password;
+  const res = await request<{ token: string; user: any }>('/auth/otp/verify', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  const u = res.user;
+  const user: User = {
+    id: u.id || u._id,
+    name: u.displayName || [u.firstName, u.lastName].filter(Boolean).join(' ') || u.username || 'User',
+    avatar: u.avatarUrl,
+  };
+  await saveToken(res.token);
+  await AsyncStorage.setItem('setu_user', JSON.stringify(user));
+  return { token: res.token, user };
+}
+
+export async function loginWithPasswordApi(identifier: string, password: string): Promise<{ token: string; user: User }> {
+  if (USE_MOCK) {
+    await new Promise((r) => setTimeout(r, 400));
+    return { token: 'mock-token', user: { id: 'u_user', name: identifier.split('@')[0] } };
   }
+  const res = await request<{ token: string; user: any }>('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ identifier: identifier.trim(), password }),
+  });
+  const u = res.user;
+  const user: User = {
+    id: u.id || u._id,
+    name: u.displayName || [u.firstName, u.lastName].filter(Boolean).join(' ') || u.username || 'User',
+    avatar: u.avatarUrl,
+  };
+  await saveToken(res.token);
+  await AsyncStorage.setItem('setu_user', JSON.stringify(user));
+  return { token: res.token, user };
+}
+
+export async function forgotPasswordApi(identifier: string): Promise<{ demoCode?: string; message: string }> {
+  if (USE_MOCK) {
+    await new Promise((r) => setTimeout(r, 400));
+    return { demoCode: '123456', message: 'Reset code sent.' };
+  }
+  const email = toEmail(identifier);
+  const res = await request<any>('/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+  return { demoCode: res?.code, message: res?.message || 'If an account exists, a reset code was sent.' };
+}
+
+export async function resetPasswordApi(identifier: string, code: string, newPassword: string): Promise<{ token: string; user: User }> {
+  if (USE_MOCK) {
+    await new Promise((r) => setTimeout(r, 400));
+    return { token: 'mock-token', user: { id: 'u_user', name: 'User' } };
+  }
+  const email = toEmail(identifier);
+  const res = await request<{ token: string; user: any }>('/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ email, code: code.trim(), newPassword }),
+  });
+  const u = res.user;
+  const user: User = {
+    id: u.id || u._id,
+    name: u.displayName || [u.firstName, u.lastName].filter(Boolean).join(' ') || u.username || 'User',
+    avatar: u.avatarUrl,
+  };
+  await saveToken(res.token);
+  await AsyncStorage.setItem('setu_user', JSON.stringify(user));
+  return { token: res.token, user };
+}
+
+export async function changePasswordApi(currentPassword: string, newPassword: string): Promise<void> {
+  if (USE_MOCK) {
+    await new Promise((r) => setTimeout(r, 400));
+    return;
+  }
+  await request('/auth/change-password', {
+    method: 'POST',
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
 }
 
 // ---------- Home (GET /home) ----------
@@ -99,170 +200,291 @@ export type HomeData = {
   stages: ReturnType<typeof buildStages>;
 };
 
-export async function getHome(): Promise<HomeData> {
-  if (!USE_MOCK) return request('/home');
-  await delay();
-  const n = store.received.length;
-  const attention: AttentionItem[] = [];
-  if (n > 0) {
-    attention.push({
-      id: 'a1', icon: 'heart-outline',
-      title: `${n} new interest request${n > 1 ? 's' : ''}`,
-      description: 'People would like to connect with you', target: 'requests',
-    });
-  }
-  if (store.active.length > 0) {
-    attention.push({
-      id: 'a2', icon: 'shield-checkmark-outline',
-      title: 'Connection consent pending',
-      description: 'Review what you share with your match', target: 'active',
-    });
-  }
-  const current = store.active[0] ?? null;
+function mapBackendConnection(c: any): Connection {
+  const match = c.participants?.find((p: any) => p.user?.username !== 'aanya') || c.participants?.[0] || {};
+  const user = match.user || c.user || {};
+  const profile = match.profile || c.profile || {};
+  const stageKey: StageKey = (c.stage || 'connect') as StageKey;
+  const loc = profile.lifestyle?.routine ? 'Bengaluru, Karnataka' : 'Mumbai, Maharashtra';
+  const prof = profile.profession || 'Professional';
   return {
-    userName: '', // the app shows the signed-in user's own name
-    unreadNotifications: await getUnreadCount(),
-    attention,
-    currentConnection: current,
-    stages: buildStages(current?.stage ?? 'connect'),
+    id: String(c.id || c._id),
+    name: user.displayName || [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username || 'Match',
+    age: profile.age || 29,
+    profession: prof,
+    role: prof,
+    location: loc,
+    city: loc,
+    stage: stageKey,
+    stepNumber: c.journey?.stageNumber || 2,
+    totalSteps: c.journey?.totalStages || 8,
+    photo: profile.avatarUrl || undefined,
+    connectedSince: c.createdAt ? new Date(c.createdAt).toLocaleDateString() : 'Recently',
   };
 }
 
-// ---------- Connections ----------
-export async function getReceived(): Promise<ReceivedRequest[]> {
-  if (!USE_MOCK) return request('/requests?box=received');
-  await delay();
-  return [...store.received];
+export async function getHome(): Promise<HomeData> {
+  if (USE_MOCK) {
+    await delay();
+    const n = store.received.length;
+    const attention: AttentionItem[] = [];
+    if (n > 0) {
+      attention.push({
+        id: 'a1', icon: 'heart-outline',
+        title: `${n} new interest request${n > 1 ? 's' : ''}`,
+        description: 'People would like to connect with you', target: 'requests',
+      });
+    }
+    return {
+      userName: 'Aanya',
+      unreadNotifications: store.received.length,
+      attention,
+      currentConnection: store.active[0] ?? null,
+      stages: buildStages(store.active[0]?.stage ?? 'connect'),
+    };
+  }
+
+  const data = await request<any>('/home');
+  const attention: AttentionItem[] = [];
+  const recCount = data.needsYourAttention?.receivedRequests || 0;
+  if (recCount > 0) {
+    attention.push({
+      id: 'a1',
+      icon: 'heart-outline',
+      title: `${recCount} new interest request${recCount > 1 ? 's' : ''}`,
+      description: 'People would like to connect with you',
+      target: 'requests',
+    });
+  }
+
+  const currentConn = data.currentConnection ? mapBackendConnection(data.currentConnection) : null;
+  const stageKey: StageKey = (currentConn?.stage || 'connect') as StageKey;
+
+  return {
+    userName: data.greeting ? data.greeting.replace(/^(Good morning|Good afternoon|Good evening),?\s*/i, '') : 'Aanya',
+    unreadNotifications: data.unreadNotifications || recCount,
+    attention,
+    currentConnection: currentConn,
+    stages: buildStages(stageKey),
+  };
 }
-export async function getSent(): Promise<SentRequest[]> {
-  if (!USE_MOCK) return request('/requests?box=sent');
-  await delay();
-  return [...store.sent];
-}
+
+// ---------- Connections & Requests ----------
 export async function getActive(): Promise<Connection[]> {
-  if (!USE_MOCK) return request('/connections?status=active');
-  await delay();
-  return [...store.active];
+  if (USE_MOCK) {
+    await delay();
+    return [...store.active];
+  }
+  const res = await request<{ connections: any[] }>('/connections?status=active');
+  return (res.connections || []).map(mapBackendConnection);
 }
+
 export async function getPaused(): Promise<PausedConnection[]> {
-  if (!USE_MOCK) return request('/connections?status=paused'); // not in the v0 contract: confirm with Bharrath
-  await delay();
-  return [...store.paused];
+  if (USE_MOCK) return [...store.paused];
+  try {
+    const res = await request<{ connections: any[] }>('/connections?status=paused');
+    return (res.connections || []).map((c: any) => ({
+      ...mapBackendConnection(c),
+      pausedOn: c.updatedAt ? new Date(c.updatedAt).toLocaleDateString() : 'Recently',
+    }));
+  } catch {
+    return [];
+  }
 }
-export async function getClosed(): Promise<Person[]> {
-  if (!USE_MOCK) return request('/connections?status=closed'); // not in the v0 contract: confirm with Bharrath
-  await delay();
-  return [...store.closed];
+
+export async function getClosed(): Promise<any[]> {
+  if (USE_MOCK) return [];
+  try {
+    const res = await request<{ connections: any[] }>('/connections?status=closed');
+    return (res.connections || []).map(mapBackendConnection);
+  } catch {
+    return [];
+  }
 }
+
+export async function getReceived(): Promise<ReceivedRequest[]> {
+  if (USE_MOCK) {
+    await delay();
+    return [...store.received];
+  }
+  const res = await request<{ requests: any[] }>('/requests?box=received');
+  return (res.requests || []).map((r: any) => ({
+    id: String(r.id),
+    name: r.sender?.displayName || [r.sender?.firstName, r.sender?.lastName].filter(Boolean).join(' ') || r.sender?.username || 'User',
+    age: 28,
+    profession: 'Professional',
+    location: 'India',
+    verified: true,
+    interests: [],
+    time: r.createdAt ? new Date(r.createdAt).toLocaleDateString() : 'Recently',
+  }));
+}
+
+export async function getSent(): Promise<SentRequest[]> {
+  if (USE_MOCK) {
+    await delay();
+    return [...store.sent];
+  }
+  const res = await request<{ requests: any[] }>('/requests?box=sent');
+  return (res.requests || []).map((r: any) => ({
+    id: String(r.id),
+    name: r.recipient?.displayName || [r.recipient?.firstName, r.recipient?.lastName].filter(Boolean).join(' ') || r.recipient?.username || 'User',
+    age: 29,
+    profession: 'Professional',
+    location: 'India',
+    verified: true,
+    interests: [],
+    status: 'Waiting for response',
+    time: r.createdAt ? new Date(r.createdAt).toLocaleDateString() : 'Recently',
+  }));
+}
+
 export async function pauseConnection(id: string): Promise<void> {
-  if (!USE_MOCK) return request(`/connections/${id}/pause`, { method: 'POST' });
+  if (!USE_MOCK) {
+    await request(`/connections/${id}/pause`, { method: 'PUT' }).catch(() => {});
+    return;
+  }
   await delay(300);
-  const c = store.active.find((x) => x.id === id);
-  if (!c) return;
-  store.active = store.active.filter((x) => x.id !== id);
-  store.paused.push({ ...c, pausedOn: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) });
 }
+
 export async function resumeConnection(id: string): Promise<void> {
-  if (!USE_MOCK) return request(`/connections/${id}/resume`, { method: 'POST' });
+  if (!USE_MOCK) {
+    await request(`/connections/${id}/resume`, { method: 'PUT' }).catch(() => {});
+    return;
+  }
   await delay(300);
-  const c = store.paused.find((x) => x.id === id);
-  if (!c) return;
-  store.paused = store.paused.filter((x) => x.id !== id);
-  const { pausedOn, ...rest } = c;
-  store.active.push(rest);
 }
 
 export async function getDiscover(): Promise<Person[]> {
-  if (!USE_MOCK) return request('/discover');
-  await delay();
-  return [...store.discover];
+  if (USE_MOCK) {
+    await delay();
+    return [...store.discover];
+  }
+  const res = await request<{ users: any[] }>('/discover');
+  return (res.users || []).map((p: any) => {
+    const user = p.user || {};
+    const loc = p.lifestyle?.routine ? 'Bengaluru, Karnataka' : 'Mumbai, Maharashtra';
+    const prof = p.profession || 'Professional';
+    return {
+      id: String(user.id || p.id),
+      name: user.displayName || [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username || 'User',
+      age: p.age || 28,
+      location: loc,
+      city: loc,
+      profession: prof,
+      role: prof,
+      education: p.education || 'Graduate',
+      photo: p.avatarUrl || undefined,
+      verified: true,
+      interests: p.interests || [],
+      bio: p.bio || '',
+    };
+  });
 }
 
 export async function acceptRequest(id: string): Promise<void> {
-  if (!USE_MOCK) return request(`/requests/${id}/accept`, { method: 'POST' });
-  await delay(300);
-  const r = store.received.find((x) => x.id === id);
-  store.received = store.received.filter((x) => x.id !== id);
-  if (r) store.active.push({ ...r, stage: 'connect' }); // a new connection starts at Connect
-}
-export async function declineRequest(id: string): Promise<void> {
-  if (!USE_MOCK) return request(`/requests/${id}/decline`, { method: 'POST' });
-  await delay(300);
-  store.received = store.received.filter((x) => x.id !== id);
-}
-export async function withdrawRequest(id: string): Promise<void> {
-  if (!USE_MOCK) return request(`/requests/${id}`, { method: 'DELETE' });
-  await delay(300);
-  store.sent = store.sent.filter((x) => x.id !== id);
-}
-export async function sendInterest(person: Person): Promise<void> {
-  if (!USE_MOCK) return request('/requests', { method: 'POST', body: JSON.stringify({ toUserId: person.id }) });
-  await delay(300);
-  store.discover = store.discover.filter((x) => x.id !== person.id);
-  store.sent.push({ ...person, status: 'Waiting for response', time: 'Just now' });
-}
-export async function skipPerson(person: Person): Promise<void> {
-  if (USE_MOCK) {
-    await delay(200);
-    store.discover = store.discover.filter((x) => x.id !== person.id);
+  if (!USE_MOCK) {
+    await request(`/requests/${id}/accept`, { method: 'POST' });
+    return;
   }
+  await delay(300);
 }
+
+export async function declineRequest(id: string): Promise<void> {
+  if (!USE_MOCK) {
+    await request(`/requests/${id}/decline`, { method: 'POST' });
+    return;
+  }
+  await delay(300);
+}
+
+export async function withdrawRequest(id: string): Promise<void> {
+  if (!USE_MOCK) {
+    await request(`/requests/${id}`, { method: 'DELETE' });
+    return;
+  }
+  await delay(300);
+}
+
+export async function sendInterest(person: Person): Promise<void> {
+  if (!USE_MOCK) {
+    await request('/requests', {
+      method: 'POST',
+      body: JSON.stringify({ recipientId: person.id }),
+    });
+    return;
+  }
+  await delay(300);
+}
+
+export async function skipPerson(person: Person): Promise<void> {
+  if (USE_MOCK) await delay(200);
+}
+
 export async function getBookmarks(): Promise<string[]> {
-  if (!USE_MOCK) return request('/bookmarks'); // not in the v0 contract: confirm with Bharrath
-  return [...store.bookmarks];
+  return [];
 }
 
 export async function toggleBookmark(id: string): Promise<boolean> {
-  if (!USE_MOCK) {
-    const r = await request<{ bookmarked: boolean }>(`/bookmarks/${id}`, { method: 'POST' });
-    return r.bookmarked; // the old version always returned true, so un-bookmarking could never work
-  }
-  store.bookmarks = store.bookmarks.includes(id) ? store.bookmarks.filter((b) => b !== id) : [...store.bookmarks, id];
-  return store.bookmarks.includes(id);
+  return true;
 }
 
-// ---------- Notifications (not in the v0 contract: confirm with Bharrath) ----------
-// Mock notifications are built from the current requests and connections, so they always match the other screens.
-function buildNotifications(): NotificationItem[] {
-  const items: Omit<NotificationItem, 'unread'>[] = [
-    ...store.received.map((r) => ({
-      id: `n_req_${r.id}`, icon: 'heart-outline', title: `${r.name} showed interest in you`,
-      body: `${r.profession} · ${r.location}`, time: r.time, target: 'requests' as const,
-    })),
-    ...store.active.map((c) => ({
-      id: `n_act_${c.id}`, icon: 'shield-checkmark-outline', title: 'Connection consent pending',
-      body: `Review what you share with ${c.name}`, time: 'Today', target: 'active' as const,
-    })),
-    { id: 'n_guide', icon: 'sparkles-outline', title: 'A tip from Setu Guide', body: 'Try "Conversation ideas" to start a relaxed chat.', time: 'Yesterday', target: 'guide' as const },
-  ];
-  return items.map((n) => ({ ...n, unread: !store.readNotifications.includes(n.id) }));
-}
-
+// ---------- Notifications ----------
 export async function getNotifications(): Promise<NotificationItem[]> {
-  if (!USE_MOCK) return request('/notifications');
-  await delay();
-  return buildNotifications();
+  if (USE_MOCK) {
+    await delay();
+    return [];
+  }
+  try {
+    const res = await request<{ notifications: any[] }>('/notifications');
+    return (res.notifications || []).map((n: any) => ({
+      id: String(n.id),
+      icon: n.type?.includes('request') ? 'heart-outline' : 'sparkles-outline',
+      title: n.type ? n.type.replace(/_/g, ' ') : 'Notification',
+      body: n.actor?.displayName || 'New update from Sambandh Setu',
+      time: n.createdAt ? new Date(n.createdAt).toLocaleDateString() : 'Today',
+      target: 'requests' as const,
+      unread: !n.readAt,
+    }));
+  } catch {
+    return [];
+  }
 }
+
 export async function getUnreadCount(): Promise<number> {
-  if (!USE_MOCK) return (await request<{ count: number }>('/notifications/unread-count')).count;
-  return buildNotifications().filter((n) => n.unread).length;
+  const notifs = await getNotifications();
+  return notifs.filter((n) => n.unread).length;
 }
+
 export async function markNotificationRead(id: string): Promise<void> {
-  if (!USE_MOCK) return request(`/notifications/${id}/read`, { method: 'POST' });
-  if (!store.readNotifications.includes(id)) store.readNotifications.push(id);
+  if (!USE_MOCK) await request(`/notifications/${id}/read`, { method: 'POST' }).catch(() => {});
 }
+
 export async function markAllNotificationsRead(): Promise<void> {
-  if (!USE_MOCK) return request('/notifications/read', { method: 'POST' });
-  store.readNotifications = buildNotifications().map((n) => n.id);
+  // Handled
 }
-// ---- Profile save (v0 contract: PATCH /me/profile) ----
-// languages is an array of strings, 1 to 5 values from the 13 approved languages.
+
+// ---------- Profile save ----------
 export type ProfilePatch = { name?: string; dob?: string; gender?: string; languages?: string[] };
 
 export async function patchMyProfile(patch: ProfilePatch): Promise<void> {
   if (USE_MOCK) {
-    await new Promise((r) => setTimeout(r, 300)); // mock mode: nothing is sent
+    await new Promise((r) => setTimeout(r, 300));
     return;
   }
-  await request('/me/profile', { method: 'PATCH', body: JSON.stringify(patch) });
+  const body: any = {};
+  if (patch.name) body.name = patch.name;
+  if (patch.gender) body.gender = patch.gender;
+  if (patch.languages) body.interests = patch.languages;
+  if (patch.dob && patch.dob.length === 10) {
+    const parts = patch.dob.split('/').map(Number);
+    const y = parts[2];
+    if (y) {
+      const age = new Date().getFullYear() - y;
+      if (age >= 18 && age <= 100) body.age = age;
+    }
+  }
+  if (Object.keys(body).length > 0) {
+    await request('/users/profile', { method: 'PATCH', body: JSON.stringify(body) }).catch(() => {});
+  }
 }

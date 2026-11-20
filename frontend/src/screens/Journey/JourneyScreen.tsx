@@ -58,7 +58,7 @@ export default function JourneyScreen({ navigation }: any) {
         ) : error ? (
           <EmptyState icon="cloud-offline-outline" title="Couldn't load your journey" description="Check your connection and try again." actionLabel="Try again" onAction={load} />
         ) : !conn ? (
-          <EmptyState icon="people-outline" title="No journey yet" description="Accept a request to begin a journey with someone." actionLabel="Find people" onAction={() => navigation.navigate('Connections')} />
+          <EmptyState icon="people-outline" title="No journey yet" description="Accept a request to begin a journey with someone." actionLabel="Find people" onAction={() => navigation.navigate('Connections', { tab: 'discover' })} />
         ) : (
           <>
             {/* Match */}
@@ -66,7 +66,7 @@ export default function JourneyScreen({ navigation }: any) {
               <Avatar size={56} name={conn.name} online={conn.online} />
               <View style={{ flex: 1, marginLeft: spacing.md }}>
                 <Text style={styles.name}>{conn.name}, {conn.age}</Text>
-                <Text style={styles.muted}>{conn.profession} · {conn.location.split(',')[0]}</Text>
+                <Text style={styles.muted}>{(conn.profession || 'Professional')} · {(conn.location || 'India').split(',')[0]}</Text>
                 <View style={styles.connected}>
                   <Ionicons name="checkmark-circle" size={15} color={colors.success} />
                   <Text style={styles.connectedText}>Connected</Text>

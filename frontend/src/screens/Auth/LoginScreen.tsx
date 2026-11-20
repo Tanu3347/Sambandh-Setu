@@ -9,6 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 
 const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 const isPhone = (v: string) => /^\d{10}$/.test(v.replace(/[\s+-]|^91/g, ''));
+const isUsername = (v: string) => /^[a-zA-Z0-9_.-]{3,30}$/.test(v.trim());
 
 export default function LoginScreen({ navigation }: any) {
   const auth = useAuth() as any;
@@ -20,8 +21,8 @@ export default function LoginScreen({ navigation }: any) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  const idOk = isEmail(id) || isPhone(id);
-  const idError = id.length > 0 && !idOk ? 'Enter a valid email or 10-digit phone number' : '';
+  const idOk = isEmail(id) || isPhone(id) || isUsername(id);
+  const idError = id.length > 0 && !idOk ? 'Enter a valid email, username, or phone number' : '';
   const valid = idOk && password.length >= 6;
 
   const submit = async () => {
@@ -31,7 +32,7 @@ export default function LoginScreen({ navigation }: any) {
       // On success AuthContext sets `user`, and RootNavigator switches to the signed-in app by itself.
       await login({ identifier: id.trim(), password });
     } catch (e: any) {
-      setError(e?.message ?? 'Incorrect email/phone or password');
+      setError(e?.error?.message || e?.message || 'Incorrect email/username or password');
     } finally {
       setBusy(false);
     }
@@ -48,15 +49,15 @@ export default function LoginScreen({ navigation }: any) {
           <Text style={styles.title}>Welcome back</Text>
           <Text style={styles.sub}>Log in to continue your Sambandh Setu journey.</Text>
 
-          <Text style={styles.label}>Email or phone number</Text>
+          <Text style={styles.label}>Email, username or phone number</Text>
           <AppInput
             value={id}
             onChangeText={(t) => { setId(t); setError(''); }}
-            placeholder="name@example.com or 10-digit number"
+            placeholder="name@example.com, username or phone"
             autoCapitalize="none"
             autoCorrect={false}
             keyboardType="email-address"
-            accessibilityLabel="Email or phone number"
+            accessibilityLabel="Email, username or phone number"
           />
           {!!idError && <Text style={styles.error}>{idError}</Text>}
 

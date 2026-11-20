@@ -1,8 +1,10 @@
 const Profile = require("../models/Profile");
+const User = require("../models/User");
 const ApiError = require("../utils/ApiError");
 const { serializeProfile } = require("../utils/serializers");
 
 const PROFILE_FIELDS = new Set([
+    "name",
     "age",
     "gender",
     "heightCm",
@@ -84,6 +86,9 @@ const validateProfilePatch = (body) => {
             throw ApiError.badRequest(`Unsupported profile field: ${field}`, [{ field }]);
         }
         switch (field) {
+            case "name":
+                result[field] = validateText(value, field, 100, { allowEmpty: false });
+                break;
             case "age":
                 if (!Number.isInteger(value) || value < 18 || value > 100) {
                     throw ApiError.badRequest("age must be an integer between 18 and 100", [{ field }]);
@@ -211,6 +216,14 @@ const getMyPreferences = async (req, res) => {
 
 const updateMyProfile = async (req, res) => {
     const updates = validateProfilePatch(req.body);
+    if (updates.name) {
+        const parts = updates.name.split(" ");
+        await User.findByIdAndUpdate(req.user._id, {
+            firstName: parts[0],
+            lastName: parts.slice(1).join(" ")
+        });
+        delete updates.name;
+    }
     const profile = await Profile.findOneAndUpdate(
         { user: req.user._id },
         { $set: updates },

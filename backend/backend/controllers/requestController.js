@@ -18,7 +18,7 @@ const serializeRequest = (request) => ({
 });
 
 const sendRequest = async (req, res) => {
-    const recipientId = requireObjectId(req.body?.recipientId, "recipientId");
+    const recipientId = requireObjectId(req.body?.recipientId || req.body?.toUserId, "recipientId");
     if (String(req.user._id) === recipientId) {
         throw ApiError.badRequest("You cannot send a connection request to yourself");
     }

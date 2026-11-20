@@ -53,6 +53,10 @@ const requestOtp = async (email) => {
     }
 
     const code = crypto.randomInt(100000, 1000000).toString();
+    console.log(`\n==============================================`);
+    console.log(`[OTP] Generated verification code for: ${email}`);
+    console.log(`[OTP] CODE: ${code}`);
+    console.log(`==============================================\n`);
 
     const data = {
         codeHash: getOtpHash(email, code),
@@ -71,10 +75,16 @@ const requestOtp = async (email) => {
 
     try {
         await sendOtpEmail(email, code);
+        console.log(`[OTP] Email sent via Brevo to ${email}`);
     } catch (error) {
-        await Otp.deleteOne({ _id: record._id });
-        throw new Error("OTP email could not be sent");
+        if (process.env.NODE_ENV === "development") {
+            console.warn(`[OTP] Email provider notice: ${error.message}. Verification code remains active for dev testing.`);
+        } else {
+            await Otp.deleteOne({ _id: record._id });
+            throw new Error("OTP email could not be sent");
+        }
     }
+    return code;
 };
 
 const verifyOtp = async (email, code) => {

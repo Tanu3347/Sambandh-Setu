@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { clearToken, devLogin, getMe, getToken, saveToken, USE_MOCK, User } from '../services/api';
+import { clearToken, devLogin, getMe, getToken, loginWithPasswordApi, patchMyProfile, saveToken, USE_MOCK, User } from '../services/api';
+import { saveMyProfile } from '../services/myProfile';
 
 const USER_KEY = 'setu_user'; // the signed-in user (id, name and avatar) is stored here
 const PENDING_AVATAR_KEY = 'setu_pending_avatar'; // photo picked before the user object exists
@@ -91,28 +92,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(nextUser);
   };
 
-  // Email or phone + password. Checks the credentials, then signs in with the session it gets back.
+  // Email or phone + password. Checks credentials against the backend API and logs in.
   const loginWithPassword = async ({ identifier, password }: { identifier: string; password: string }) => {
-    let session: Session;
-
-    // TODO: replace this block with your real API call.
-    // It should return { token, user }, or throw when the credentials are wrong.
-    // Example:
-    // const res = await fetch(`${API_URL}/auth/login`, {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ identifier, password }),
-    // });
-    // if (!res.ok) throw new Error('Incorrect email/phone or password');
-    // session = await res.json();
-
-    // Temporary test account so you can try the screen without a backend (dev builds only)
-    if (__DEV__ && identifier.toLowerCase() === 'test@example.com' && password === 'Test@1234') {
-      session = await devLogin();
-    } else {
-      throw new Error('Incorrect email/phone or password');
-    }
-
+    const session = await loginWithPasswordApi(identifier, password);
     await signIn(session);
   };
 
@@ -122,6 +104,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const updated = { ...user, name };
     await AsyncStorage.setItem(USER_KEY, JSON.stringify(updated));
     setUser(updated);
+    if (!USE_MOCK) {
+      await patchMyProfile({ name }).catch(() => {});
+    }
   };
 
   // Called from the photo screens (onboarding and edit profile) with the picker's URI
@@ -135,6 +120,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const updated = { ...user, avatar: saved } as User;
     await AsyncStorage.setItem(USER_KEY, JSON.stringify(updated));
     setUser(updated);
+    if (!USE_MOCK) {
+      await saveMyProfile({ photoUri: saved }).catch(() => {});
+    }
     return saved;
   };
 

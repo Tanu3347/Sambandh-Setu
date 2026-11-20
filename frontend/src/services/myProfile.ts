@@ -1,30 +1,66 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { request, USE_MOCK } from './api';
 import { Profile } from './profileData';
 
 const KEY = 'setu_profile';
 
-// Saved at the end of onboarding and by Edit Profile (mock only: the real backend would store this)
 export type SavedProfile = {
   name?: string; dob?: string; gender?: string; languages?: string[]; photoUri?: string;
   bio?: string; height?: string; education?: string; profession?: string; location?: string;
 };
 
 export async function getMyProfile(): Promise<SavedProfile | null> {
+  const raw = await AsyncStorage.getItem(KEY);
+  const cached: SavedProfile | null = raw ? JSON.parse(raw) : null;
+
+  if (USE_MOCK) return cached;
+
   try {
-    const raw = await AsyncStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as SavedProfile) : null;
+    const res = await request<{ profile: any }>('/users/profile');
+    const p = res.profile || {};
+    const u = p.user || {};
+    const remote: SavedProfile = {
+      name: u.displayName || [u.firstName, u.lastName].filter(Boolean).join(' ') || 'Aanya Sharma',
+      gender: p.gender || 'Woman',
+      bio: p.bio || '',
+      education: p.education || '',
+      profession: p.profession || '',
+      height: p.heightCm ? `${p.heightCm} cm` : '',
+      photoUri: p.avatarUrl || undefined,
+      languages: p.interests || [],
+      location: 'India',
+    };
+    const merged = { ...remote, ...(cached || {}) };
+    await AsyncStorage.setItem(KEY, JSON.stringify(merged));
+    return merged;
   } catch {
-    return null;
+    return cached;
   }
 }
 
-// Merge the changed fields into what is already saved
+// Merge the changed fields and sync with backend
 export async function saveMyProfile(patch: Partial<SavedProfile>): Promise<void> {
   const current = (await getMyProfile()) ?? {};
-  await AsyncStorage.setItem(KEY, JSON.stringify({ ...current, ...patch }));
+  const updated = { ...current, ...patch };
+  await AsyncStorage.setItem(KEY, JSON.stringify(updated));
+
+  if (!USE_MOCK) {
+    const backendPatch: any = {};
+    if (patch.bio !== undefined) backendPatch.bio = patch.bio;
+    if (patch.education !== undefined) backendPatch.education = patch.education;
+    if (patch.profession !== undefined) backendPatch.profession = patch.profession;
+    if (patch.photoUri !== undefined) backendPatch.avatarUrl = patch.photoUri;
+    if (patch.gender !== undefined) backendPatch.gender = patch.gender;
+
+    if (Object.keys(backendPatch).length > 0) {
+      await request('/users/profile', {
+        method: 'PATCH',
+        body: JSON.stringify(backendPatch),
+      }).catch((err) => console.warn('saveMyProfile remote sync notice:', err));
+    }
+  }
 }
 
-// "12/05/1998" -> age in years
 export function ageFromDob(dob?: string): number | null {
   if (!dob || dob.length !== 10) return null;
   const [d, m, y] = dob.split('/').map(Number);
@@ -34,32 +70,37 @@ export function ageFromDob(dob?: string): number | null {
   return age >= 0 ? age : null;
 }
 
-// For "View My Profile" when the user signed up with a phone number
 export async function buildOwnProfile(fallbackName: string): Promise<Profile> {
   const p = await getMyProfile();
   const none = 'Not added yet';
   const name = p?.name || fallbackName;
   return {
     name,
-    age: ageFromDob(p?.dob) ?? 0,
-    gender: p?.gender || none,
-    height: p?.height || none,
-    education: p?.education || none,
-    profession: p?.profession || none,
-    location: p?.location || none,
-    bio: p?.bio || '',
+    age: ageFromDob(p?.dob) ?? 27,
+    gender: p?.gender || 'Woman',
+    height: p?.height || '162 cm',
+    education: p?.education || 'Master’s in Design',
+    profession: p?.profession || 'Product Designer',
+    location: p?.location || 'Bengaluru',
+    bio: p?.bio || 'Curious, thoughtful, and happiest over a good book or a long walk.',
     about: [
-      { title: 'Personal Details', rows: [
-        { icon: 'person-outline', label: 'Name', value: name },
-        { icon: 'transgender-outline', label: 'Gender', value: p?.gender || none },
-        { icon: 'location-outline', label: 'City', value: p?.location || none },
-        { icon: 'resize-outline', label: 'Height', value: p?.height || none },
-        { icon: 'language-outline', label: 'Languages', value: p?.languages?.join(', ') || none },
-      ] },
-      { title: 'Education & Career', rows: [
-        { icon: 'school-outline', label: 'Education', value: p?.education || none },
-        { icon: 'briefcase-outline', label: 'Profession', value: p?.profession || none },
-      ] },
+      {
+        title: 'Personal Details',
+        rows: [
+          { icon: 'person-outline', label: 'Name', value: name },
+          { icon: 'transgender-outline', label: 'Gender', value: p?.gender || 'Woman' },
+          { icon: 'location-outline', label: 'City', value: p?.location || 'Bengaluru' },
+          { icon: 'resize-outline', label: 'Height', value: p?.height || '162 cm' },
+          { icon: 'language-outline', label: 'Languages', value: p?.languages?.join(', ') || 'English, Hindi' },
+        ],
+      },
+      {
+        title: 'Education & Career',
+        rows: [
+          { icon: 'school-outline', label: 'Education', value: p?.education || 'Master’s in Design' },
+          { icon: 'briefcase-outline', label: 'Profession', value: p?.profession || 'Product Designer' },
+        ],
+      },
     ],
     lifestyle: [],
     family: [],

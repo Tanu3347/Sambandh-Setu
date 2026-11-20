@@ -13,8 +13,10 @@ const RESEND_SECONDS = 30;
 const MAX_ATTEMPTS = 5;
 
 export default function VerifyOtpScreen({ navigation, route }: any) {
-  const phone: string = route.params?.phone ?? '';
-  const masked = `+91 xxxxx xx${phone.slice(-3)}`;
+  const identifier: string = route.params?.identifier ?? route.params?.phone ?? '';
+  const password = route.params?.password;
+  const isEmail = identifier.includes('@');
+  const targetDisplay = isEmail ? identifier : `+91 xxxxx xx${identifier.slice(-3)}`;
   const [demoCode, setDemoCode] = useState<string | undefined>(route.params?.demoCode);
   const [code, setCode] = useState('');
   const [seconds, setSeconds] = useState(RESEND_SECONDS);
@@ -35,22 +37,25 @@ export default function VerifyOtpScreen({ navigation, route }: any) {
     setLoading(true);
     setError('');
     try {
-      const session = await verifyOtp(phone, code);
-if (session) {
-  setLoading(false);
-  navigation.navigate('OnboardingBasics', { session }); // sign-in happens at the end of onboarding
-  return;
-}
+      const session = await verifyOtp(identifier, code, password);
+      if (session) {
+        setLoading(false);
+        if ((session as any).user?.onboardingCompleted) {
+          await signIn(session);
+        } else {
+          navigation.navigate('OnboardingBasics', { session }); // sign-in happens at the end of onboarding
+        }
+        return;
+      }
+    } catch (err: any) {
       const used = attempts + 1;
       setAttempts(used);
       setCode('');
       setError(
         used >= MAX_ATTEMPTS
           ? 'Too many wrong tries. Please request a new code.'
-          : `Incorrect code. ${MAX_ATTEMPTS - used} ${MAX_ATTEMPTS - used === 1 ? 'try' : 'tries'} left.`
+          : err?.error?.message || err?.message || `Incorrect code. ${MAX_ATTEMPTS - used} tries left.`
       );
-    } catch {
-      setError('Could not verify. Check your connection and try again.');
     }
     setLoading(false);
   };
@@ -60,11 +65,11 @@ if (session) {
     setCode('');
     setAttempts(0);
     try {
-      const r = await sendOtp(phone);
+      const r = await sendOtp(identifier);
       setDemoCode(r.demoCode);
       setSeconds(RESEND_SECONDS);
-    } catch {
-      setError("Couldn't send a new code. Try again.");
+    } catch (err: any) {
+      setError(err?.error?.message || "Couldn't send a new code. Try again.");
     }
   };
 
@@ -77,22 +82,22 @@ if (session) {
         <Ionicons name="arrow-back" size={24} color={colors.text} />
       </Pressable>
 
-      <Text style={styles.title}>Verify your number</Text>
+      <Text style={styles.title}>{isEmail ? 'Verify your email' : 'Verify your number'}</Text>
       <Text style={styles.sub}>We've sent a 6-digit code to</Text>
-      <Text style={styles.phone}>{masked}</Text>
+      <Text style={styles.phone}>{targetDisplay}</Text>
 
-      {/* Demo mode only: a real SMS needs a backend and an SMS provider */}
       {!!demoCode && (
         <View style={styles.demo}>
           <Ionicons name="information-circle-outline" size={16} color={colors.primary} />
           <Text style={styles.demoText}>
-            Demo mode: your code is <Text style={styles.demoCode}>{demoCode}</Text>
+            Code: <Text style={styles.demoCode}>{demoCode}</Text>
+            {isEmail ? ' (also sent to email inbox & CLI)' : ' (logged on backend CLI)'}
           </Text>
         </View>
       )}
 
       <View style={{ marginTop: spacing.xl }}>
-        <OtpInput value={code} />
+        <OtpInput value={code} onChangeText={setCode} />
       </View>
       {!!error && <Text style={styles.error}>{error}</Text>}
 

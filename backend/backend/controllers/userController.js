@@ -20,7 +20,8 @@ const getCurrentProfile = async (req, res) => {
 };
 
 const getProfile = async (req, res) => {
-    const userId = requireObjectId(req.params.userId, "userId");
+    const rawId = req.params.userId;
+    const userId = rawId === "me" ? req.user._id : requireObjectId(rawId, "userId");
     const user = await User.findOne({ _id: userId, isActive: true }).select(
         "_id username firstName lastName"
     );

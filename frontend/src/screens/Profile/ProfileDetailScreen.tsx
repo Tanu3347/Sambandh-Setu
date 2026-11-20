@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,6 +7,7 @@ import Card from '../../components/Card';
 import EmptyState from '../../components/EmptyState';
 import ScreenHeader from '../../components/ScreenHeader';
 import { useAuth } from '../../context/AuthContext';
+import { request, USE_MOCK } from '../../services/api';
 import { store } from '../../services/mockData';
 import { buildOwnProfile } from '../../services/myProfile';
 import { PROFILES, Profile, Section } from '../../services/profileData';
@@ -48,6 +49,7 @@ export default function ProfileDetailScreen({ navigation, route }: any) {
   const { user } = useAuth();
   const userId = user?.id ?? 'guest';
   const [own, setOwn] = useState<Profile | null>(null);
+  const [match, setMatch] = useState<Profile | null>(null);
   const [values, setValues] = useState<SectionValues>({});
   const [tab, setTab] = useState<Tab>(TABS.includes(params.tab) ? params.tab : 'About');
 
@@ -60,7 +62,57 @@ export default function ProfileDetailScreen({ navigation, route }: any) {
     })();
   }, [editable, userId, user?.name]));
 
-  const profile: Profile | null = editable ? own : findMatch(params.personId ?? params.profileId);
+  useEffect(() => {
+    if (editable) return;
+    const targetId = params.personId ?? params.profileId;
+    if (!targetId) return;
+
+    const local = findMatch(targetId);
+    if (local) setMatch(local);
+
+    if (!USE_MOCK) {
+      request<{ profile: any }>(`/profiles/${targetId}`)
+        .then((res) => {
+          const raw = res?.profile || res;
+          if (raw) {
+            const u = raw.user || {};
+            const name = u.displayName || [u.firstName, u.lastName].filter(Boolean).join(' ') || u.username || raw.name || 'Member';
+            setMatch({
+              name,
+              age: raw.age || 28,
+              gender: raw.gender || 'Not specified',
+              height: raw.heightCm ? `${raw.heightCm} cm` : `5'9"`,
+              education: raw.education || 'Professional',
+              profession: raw.profession || 'Software Engineer',
+              location: raw.lifestyle?.routine ? 'Bengaluru' : 'India',
+              bio: raw.bio || '',
+              about: [
+                {
+                  title: 'Personal Details',
+                  rows: [
+                    { icon: 'person-outline', label: 'Name', value: name },
+                    { icon: 'location-outline', label: 'City', value: raw.lifestyle?.routine ? 'Bengaluru' : 'India' },
+                    { icon: 'language-outline', label: 'Languages', value: (raw.interests || ['English', 'Hindi']).join(', ') },
+                  ],
+                },
+                {
+                  title: 'Education & Career',
+                  rows: [
+                    { icon: 'school-outline', label: 'Education', value: raw.education || 'Graduate' },
+                    { icon: 'briefcase-outline', label: 'Profession', value: raw.profession || 'Professional' },
+                  ],
+                },
+              ],
+              lifestyle: [],
+              family: [],
+            });
+          }
+        })
+        .catch(() => {});
+    }
+  }, [editable, params.personId, params.profileId]);
+
+  const profile: Profile | null = editable ? own : (match || findMatch(params.personId ?? params.profileId));
 
   // all hooks are above this line
   if (editable && !own) {

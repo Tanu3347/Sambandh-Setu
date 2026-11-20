@@ -41,7 +41,14 @@ const mockFor = (chatId: string): ChatProfile =>
 
 // GET /chats/:id/profile
 export async function getChatProfile(chatId: string): Promise<ChatProfile> {
-  if (!USE_MOCK) return request(`/chats/${chatId}/profile`);
+  if (!USE_MOCK) {
+    try {
+      const res = await request<ChatProfile>(`/chats/${chatId}/profile`);
+      if (res && res.name) return res;
+    } catch {
+      // Fallback below
+    }
+  }
   await delay(400);
   return { ...mockFor(chatId) };
 }

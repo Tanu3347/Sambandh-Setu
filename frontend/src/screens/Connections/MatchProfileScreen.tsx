@@ -54,8 +54,8 @@ export default function MatchProfileScreen({ navigation, route }: any) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
-    getMatchProfile(personId).then(setData).catch(() => setData(null));
-  }, [personId]);
+    getMatchProfile(personId, route.params?.source).then(setData).catch(() => setData(null));
+  }, [personId, route.params?.source]);
 
   // All hooks are above this line. Early returns come after them.
   if (data === undefined) {
@@ -82,10 +82,19 @@ export default function MatchProfileScreen({ navigation, route }: any) {
   const respond = async (interested: boolean) => {
     setBusy(true); setError('');
     try {
-      if (source === 'received') await (interested ? acceptRequest(p.id) : declineRequest(p.id));
-      else {
-        const person = store.discover.find((x) => x.id === p.id);
-        if (person) await (interested ? sendInterest(person) : skipPerson(person));
+      if (source === 'received') {
+        await (interested ? acceptRequest(p.id) : declineRequest(p.id));
+      } else {
+        const person: Person = store.discover.find((x) => x.id === p.id) || {
+          id: p.id,
+          name: p.name,
+          age: p.age,
+          profession: p.profession,
+          location: p.location,
+          role: p.profession,
+          city: p.location,
+        };
+        await (interested ? sendInterest(person) : skipPerson(person));
       }
       navigation.goBack();
     } catch {
@@ -155,8 +164,8 @@ export default function MatchProfileScreen({ navigation, route }: any) {
             <View style={styles.infoRow}>
               {[
                 { icon: 'briefcase-outline', t: p.profession, s: `at ${p.company}` },
-                { icon: 'school-outline', t: p.education.split(' ')[0], s: p.education },
-                { icon: 'location-outline', t: p.location.split(',')[0], s: p.location.split(',')[1]?.trim() ?? '' },
+                { icon: 'school-outline', t: (p.education || 'Graduate').split(' ')[0], s: p.education },
+                { icon: 'location-outline', t: (p.location || 'India').split(',')[0], s: (p.location || 'India').split(',')[1]?.trim() ?? '' },
               ].map((i) => (
                 <View key={i.icon} style={styles.infoChip}>
                   <Ionicons name={i.icon as any} size={16} color={colors.primary} />

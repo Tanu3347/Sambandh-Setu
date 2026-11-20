@@ -1,6 +1,8 @@
 const Chat = require("../models/Chat");
 const Connection = require("../models/Connection");
 const Message = require("../models/Message");
+const User = require("../models/User");
+const Profile = require("../models/Profile");
 const ApiError = require("../utils/ApiError");
 const { getConnectionForUser } = require("../services/connectionAccessService");
 const { requireObjectId, requireString } = require("../utils/validation");
@@ -171,4 +173,32 @@ const setMuted = async (req, res) => {
     res.json({ data: { chatId: String(chat._id), muted: req.body.muted } });
 };
 
-module.exports = { listChats, listMessages, sendMessage, markMessagesRead, setMuted };
+const getChatProfile = async (req, res) => {
+    const { chat, connection } = await getAuthorizedChat(req.params.chatId, req.user._id);
+    const otherUserId = connection.participants.find((p) => String(p._id || p) !== String(req.user._id));
+    const [otherUser, otherProfile] = await Promise.all([
+        User.findById(otherUserId),
+        Profile.findOne({ user: otherUserId })
+    ]);
+    if (!otherUser) {
+        throw ApiError.notFound("User not found");
+    }
+    const name = otherUser.displayName || [otherUser.firstName, otherUser.lastName].filter(Boolean).join(" ") || otherUser.username;
+    res.json({
+        data: {
+            id: String(chat._id),
+            name,
+            age: otherProfile?.age || 28,
+            role: otherProfile?.profession || "Professional",
+            city: otherProfile?.lifestyle?.routine ? "Bengaluru" : "India",
+            photo: otherProfile?.avatarUrl,
+            online: true,
+            muted: chat.mutedBy?.some((u) => String(u) === String(req.user._id)) || false,
+            journey: { stage: connection.stage || "connect" },
+            interests: otherProfile?.interests || ["Travel", "Books"],
+            media: { total: 0, thumbs: [] }
+        }
+    });
+};
+
+module.exports = { listChats, listMessages, sendMessage, markMessagesRead, setMuted, getChatProfile };

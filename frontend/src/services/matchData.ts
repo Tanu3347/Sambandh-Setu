@@ -90,9 +90,35 @@ function build(p: Person): MatchProfile {
   };
 }
 
-// GET /profiles/{userId} in the contract. Mock: built from the person's list entry.
-export async function getMatchProfile(id: string): Promise<{ profile: MatchProfile; source: Source } | null> {
-  if (!USE_MOCK) return { profile: await request<MatchProfile>(`/profiles/${id}`), source: 'other' };
+// GET /profiles/{userId} in the contract.
+export async function getMatchProfile(id: string, sourceHint?: Source): Promise<{ profile: MatchProfile; source: Source } | null> {
+  if (!USE_MOCK) {
+    try {
+      const res = await request<{ profile: any }>(`/profiles/${id}`);
+      const raw = res?.profile || res;
+      if (raw && (raw.user || raw.name)) {
+        const u = raw.user || {};
+        const p: Person = {
+          id: String(raw.id || raw._id || u.id || id),
+          name: u.displayName || [u.firstName, u.lastName].filter(Boolean).join(' ') || u.username || raw.name || 'Member',
+          age: raw.age || 28,
+          profession: raw.profession || 'Professional',
+          location: raw.lifestyle?.routine ? 'Bengaluru' : 'India',
+          verified: true,
+          interests: raw.interests || [],
+          bio: raw.bio || '',
+        };
+        const built = build(p);
+        if (raw.bio) built.about = raw.bio;
+        if (raw.education) built.education = raw.education;
+        if (raw.profession) built.profession = raw.profession;
+        const found = findPerson(id);
+        return { profile: built, source: sourceHint || found?.source || 'discover' };
+      }
+    } catch {
+      // Fallback
+    }
+  }
   await delay(400);
   const found = findPerson(id);
   return found ? { profile: build(found.person), source: found.source } : null;

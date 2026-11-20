@@ -1,4 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { request, USE_MOCK } from './api';
+
+const PREF_MAP: Record<string, string> = {
+  prefBasic: 'basic',
+  prefLifestyle: 'lifestyle',
+  prefFamily: 'family',
+  prefValues: 'valuesOutlook',
+  prefAdditional: 'additional',
+};
 
 export type FieldDef = { key: string; label: string; placeholder: string; icon: string; multiline?: boolean };
 export type SectionDef = {
@@ -121,4 +130,14 @@ export async function saveSection(userId: string, sectionId: string, values: Rec
   } catch { /* start fresh */ }
   saved[sectionId] = values;
   await AsyncStorage.setItem(keyFor(userId), JSON.stringify(saved));
+
+  if (!USE_MOCK) {
+    const prefSection = PREF_MAP[sectionId];
+    if (prefSection) {
+      await request(`/users/preferences/${prefSection}`, {
+        method: 'PATCH',
+        body: JSON.stringify(values),
+      }).catch((err) => console.warn('saveSection remote preferences sync error:', err));
+    }
+  }
 }

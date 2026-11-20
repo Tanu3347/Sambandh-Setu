@@ -2,6 +2,7 @@
 const crypto = require("crypto");
 const Otp = require("../models/Otp");
 const { sendOtpEmail } = require("./mailer");
+const ApiError = require("../utils/ApiError");
 
 const OTP_EXPIRY_MS = 10 * 60 * 1000;
 const RESEND_COOLDOWN_MS = 30 * 1000;
@@ -42,14 +43,16 @@ const requestOtp = async (email) => {
     let record = await Otp.findOne({ email });
 
     if (record?.lockedUntil && record.lockedUntil > now) {
-        return;
+        const lockSeconds = Math.max(1, Math.ceil((record.lockedUntil.getTime() - now.getTime()) / 1000));
+        throw new ApiError(429, "OTP_LOCKED", `Too many incorrect attempts. Please wait ${lockSeconds} seconds.`, [{ retryAfterSeconds: lockSeconds }]);
     }
 
     if (
         record &&
         now.getTime() - record.lastSentAt.getTime() < RESEND_COOLDOWN_MS
     ) {
-        return;
+        const cooldownLeft = Math.max(1, Math.ceil((RESEND_COOLDOWN_MS - (now.getTime() - record.lastSentAt.getTime())) / 1000));
+        throw new ApiError(429, "COOLDOWN_ACTIVE", `Please wait ${cooldownLeft} seconds before requesting a new code.`, [{ retryAfterSeconds: cooldownLeft }]);
     }
 
     const code = crypto.randomInt(100000, 1000000).toString();

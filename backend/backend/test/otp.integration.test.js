@@ -4,7 +4,7 @@ require("dotenv").config();
 const assert = require("node:assert/strict");
 const http = require("node:http");
 const { before, after, test } = require("node:test");
-const mongoose = require("mongoose");
+const { isReady, closeDb } = require("../db");
 
 const Otp = require("../models/Otp");
 const User = require("../models/User");
@@ -86,7 +86,7 @@ before(async () => {
 });
 
 after(async () => {
-    if (mongoose.connection.readyState === 1) {
+    if (isReady()) {
         await Otp.deleteMany({ email: testEmail });
         await User.deleteMany({ email: testEmail });
 
@@ -96,7 +96,7 @@ after(async () => {
             });
         }
 
-        await mongoose.disconnect();
+        closeDb();
     }
 });
 

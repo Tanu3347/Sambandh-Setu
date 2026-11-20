@@ -34,18 +34,33 @@ export default function OnboardingSuccessScreen({ route }: any) {
 
     try {
       await saveToken(session.token); // the save below needs the session, so store the token first
-      await patchMyProfile({ name: basics.name, dob: basics.dob, gender: basics.gender, languages });
+      const updatedProfile = await patchMyProfile({
+        name: basics.name,
+        dob: basics.dob,
+        gender: basics.gender,
+        languages,
+        photoUri,
+      });
 
-      // local copy so the Profile screen has it straight away
+      // cache copy for instant rendering
       await AsyncStorage.setItem('setu_profile', JSON.stringify({ ...basics, languages, photoUri }));
 
       // tell RootNavigator where to open once signed in
       if (openBuilder) await AsyncStorage.setItem(OPEN_BUILDER_KEY, '1');
       else await AsyncStorage.removeItem(OPEN_BUILDER_KEY);
 
-      await signIn({ ...session, user: { ...session.user, name: basics.name } });
-      } catch (e) {
-      console.log('ONBOARDING SAVE FAILED:', e); // temporary
+      const confirmedName = updatedProfile?.name || updatedProfile?.user?.displayName || basics.name;
+      await signIn({
+        ...session,
+        user: {
+          ...session.user,
+          name: confirmedName,
+          displayName: confirmedName,
+          onboardingCompleted: true,
+        },
+      });
+    } catch (e) {
+      console.log('ONBOARDING SAVE FAILED:', e);
       await clearToken(); // do not leave a half-finished sign-in behind
       setError("Couldn't save your profile. Check your connection and try again.");
       setBusy(null);

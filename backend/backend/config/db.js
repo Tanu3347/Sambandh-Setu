@@ -1,17 +1,14 @@
-const mongoose = require("mongoose");
+const path = require("path");
+const { initDb, closeDb, isReady } = require("../db");
 
 const connectDB = async () => {
     try {
-        await mongoose.connect(process.env.MONGODB_URI, {
-            serverSelectionTimeoutMS: 15000,
-            connectTimeoutMS: 15000
-        });
-
-        console.log("MongoDB connected successfully");
+        const dbPath = process.env.SQLITE_DB_PATH || path.join(__dirname, "..", "sambandh_setu.db");
+        initDb(dbPath);
+        console.log(`SQLite database connected successfully (${dbPath})`);
     } catch (error) {
-        // Driver messages can embed connection details; log the type only.
         console.error(
-            "MongoDB connection failed: name=%s code=%s",
+            "SQLite database connection failed: name=%s code=%s",
             error.name || "Error",
             error.code || "none"
         );

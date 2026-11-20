@@ -1,7 +1,7 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "server.js",
   "engines": {
     "node": ">=20"
   },
@@ -21,12 +21,14 @@
     "test:b2:integration": "node --test ./test/b2.integration.test.js",
     "test:b3": "node --test ./test/b3.test.js",
     "test:b3:integration": "node --test ./test/b3.integration.test.js",
+    "test:otp": "node --test ./test/otp.integration.test.js",
+    "test:e2e": "node --test ./test/e2e-profile-persistence.test.js",
     "dev:local": "node dev-start.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "Sambandh Setu Backend with SQLite persistence",
   "dependencies": {
     "@sentry/node": "^11.12.0",
     "bcryptjs": "^3.0.3",
@@ -35,11 +37,9 @@
     "express": "^5.3.0",
     "express-rate-limit": "^8.7.4",
     "helmet": "^8.3.0",
-    "jsonwebtoken": "^9.0.3",
-    "mongoose": "^9.11.4"
+    "jsonwebtoken": "^9.0.3"
   },
   "devDependencies": {
-    "mongodb-memory-server": "^11.3.0",
     "nodemon": "^3.1.14"
   }
 }

@@ -3,6 +3,7 @@ const cors = require("cors");
 const helmet = require("helmet");
 const dotenv = require("dotenv");
 const connectDB = require("./config/db");
+const { closeDb, isReady } = require("./db");
 const { corsOptions } = require("./config/cors");
 const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
@@ -23,7 +24,6 @@ const {
 } = require("./middleware/rateLimit");
 const { initSentry, captureException } = require("./config/sentry");
 const ApiError = require("./utils/ApiError");
-const mongoose = require("mongoose");
 
 dotenv.config();
 initSentry();
@@ -60,7 +60,7 @@ app.get("/health/live", (req, res) => {
 });
 
 const readinessHandler = (req, res) => {
-    if (mongoose.connection.readyState !== 1) {
+    if (!isReady()) {
         return res.status(503).json({
             error: {
                 code: "NOT_READY",
@@ -73,7 +73,7 @@ const readinessHandler = (req, res) => {
 };
 
 // `/health` is the single path the hosting platform probes (D2-21). It is an
-// alias of `/health/ready` so the check fails when MongoDB is unavailable.
+// alias of `/health/ready` so the check fails when Database is unavailable.
 app.get("/health", readinessHandler);
 app.get("/health/ready", readinessHandler);
 
@@ -121,10 +121,10 @@ const startServer = async () => {
         });
     } catch (error) {
         try {
-            await mongoose.disconnect();
+            closeDb();
         } catch (disconnectError) {
             console.error(
-                "MongoDB disconnect after startup failure failed: name=%s",
+                "Database disconnect after startup failure failed: name=%s",
                 disconnectError.name || "Error"
             );
         }
@@ -150,9 +150,9 @@ if (require.main === module) {
                         process.exitCode = 1;
                     }
                     try {
-                        await mongoose.disconnect();
+                        closeDb();
                     } catch (disconnectError) {
-                        console.error("MongoDB shutdown failed: name=%s", disconnectError.name || "Error");
+                        console.error("Database shutdown failed: name=%s", disconnectError.name || "Error");
                         process.exitCode = 1;
                     }
                 });
@@ -161,8 +161,6 @@ if (require.main === module) {
             process.on("SIGTERM", () => shutdown("SIGTERM"));
         })
         .catch((error) => {
-            // Fixed text for our own config failure; type/code for everything
-            // else, because driver messages can carry connection details.
             if (error.code === "CONFIG_INVALID_JWT_SECRET") {
                 console.error("Server startup failed: JWT_SECRET missing or shorter than 32 characters");
             } else {

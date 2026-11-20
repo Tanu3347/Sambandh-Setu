@@ -38,16 +38,58 @@ const createToken = (user) => {
 };
 
 const requestEmailOtp = async (req, res) => {
-    const email = normalizeEmail(req.body?.email);
+    const rawEmail = req.body?.email;
+    const isPhone = Boolean(req.body?.isPhone || (typeof rawEmail === "string" && rawEmail.endsWith("@sambandhsetu.local")));
+    const purpose = req.body?.purpose || "signup";
+    const email = normalizeEmail(rawEmail);
+
+    // If request contains an active session token, verify if user is already logged in
+    const authHeader = req.get("authorization");
+    if (authHeader && authHeader.startsWith("Bearer ") && process.env.JWT_SECRET) {
+        try {
+            const token = authHeader.split(" ")[1];
+            const claims = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ["HS256"] });
+            if (claims?.sub) {
+                const currentLoggedInUser = await User.findById(claims.sub);
+                if (currentLoggedInUser && currentLoggedInUser.isActive) {
+                    throw ApiError.badRequest("You are already logged in. Please log out first before creating another account.");
+                }
+            }
+        } catch (err) {
+            if (err instanceof ApiError) throw err;
+            // Token invalid or expired: allow proceeding
+        }
+    }
+
+    const existingUser = await User.findOne({ email }).select("+email");
+
+    if (purpose === "signup" && existingUser) {
+        throw ApiError.conflict("An account with this email/number already exists. Please log in instead.");
+    }
+
+    if (purpose === "login" && !existingUser) {
+        throw ApiError.notFound("No account found with this email/number. Please create an account first.");
+    }
 
     const code = await requestOtp(email);
 
-    // Same response whether the email belongs to an existing user or not.
+    if (isPhone) {
+        // Since there is no SMS gateway configured, return code so mobile verification can proceed
+        return res.status(200).json({
+            message: "Verification code generated for mobile number.",
+            code,
+            isPhone: true,
+            expiresInSeconds: 600,
+            resendAfterSeconds: 30
+        });
+    }
+
+    // For email: NEVER send code to the frontend for security reasons
     res.status(200).json({
-        message: "If the email can receive a code, an OTP will be sent.",
+        message: "A verification code has been sent to your email inbox.",
+        isPhone: false,
         expiresInSeconds: 600,
-        resendAfterSeconds: 30,
-        ...(process.env.NODE_ENV === "development" ? { code } : {})
+        resendAfterSeconds: 30
     });
 };
 
@@ -55,6 +97,7 @@ const verifyEmailOtp = async (req, res) => {
     const email = normalizeEmail(req.body?.email);
     const code = requireString(req.body?.code, "code", { maxLength: 6 });
     const password = req.body?.password;
+    const purpose = req.body?.purpose || "signup";
 
     if (!/^\d{6}$/.test(code)) {
         throw ApiError.badRequest("OTP must contain exactly 6 digits");
@@ -83,6 +126,14 @@ const verifyEmailOtp = async (req, res) => {
 
     let user = await User.findOne({ email }).select("+email +passwordHash");
 
+    if (purpose === "signup" && user) {
+        throw ApiError.conflict("An account with this email/number already exists. Please log in instead.");
+    }
+
+    if (purpose === "login" && !user) {
+        throw ApiError.notFound("No account found with this email/number. Please create an account first.");
+    }
+
     let isNewUser = false;
 
     if (!user) {
@@ -100,6 +151,14 @@ const verifyEmailOtp = async (req, res) => {
             isSeeded: false
         });
 
+        if (req.body?.fullName && typeof req.body.fullName === "string" && req.body.fullName.trim()) {
+            const fullName = req.body.fullName.trim();
+            user.displayName = fullName;
+            const parts = fullName.split(" ");
+            user.firstName = parts[0] || "";
+            user.lastName = parts.slice(1).join(" ") || "";
+        }
+
         if (password && typeof password === "string" && password.length >= 8) {
             await user.setPassword(password);
         }
@@ -110,6 +169,11 @@ const verifyEmailOtp = async (req, res) => {
             user: user._id,
             age: 26,
             gender: "Not specified",
+            bio: "",
+            education: "",
+            profession: "",
+            location: "",
+            interests: [],
             profileStatus: "active"
         });
     } else if (password && typeof password === "string" && password.length >= 8) {
@@ -130,6 +194,9 @@ const verifyEmailOtp = async (req, res) => {
         user: {
             id: String(user._id),
             name: user.displayName || [user.firstName, user.lastName].filter(Boolean).join(" ") || user.username,
+            displayName: user.displayName || [user.firstName, user.lastName].filter(Boolean).join(" ") || user.username,
+            firstName: user.firstName || "",
+            lastName: user.lastName || "",
             avatar: profile?.avatarUrl || undefined,
             onboardingCompleted: Boolean(user.onboardingCompleted)
         }
@@ -174,6 +241,9 @@ const loginWithPassword = async (req, res) => {
         user: {
             id: String(user._id),
             name: user.displayName || [user.firstName, user.lastName].filter(Boolean).join(" ") || user.username,
+            displayName: user.displayName || [user.firstName, user.lastName].filter(Boolean).join(" ") || user.username,
+            firstName: user.firstName || "",
+            lastName: user.lastName || "",
             avatar: profile?.avatarUrl || undefined,
             onboardingCompleted: Boolean(user.onboardingCompleted)
         }
@@ -228,6 +298,9 @@ const resetPassword = async (req, res) => {
         user: {
             id: String(user._id),
             name: user.displayName || [user.firstName, user.lastName].filter(Boolean).join(" ") || user.username,
+            displayName: user.displayName || [user.firstName, user.lastName].filter(Boolean).join(" ") || user.username,
+            firstName: user.firstName || "",
+            lastName: user.lastName || "",
             avatar: profile?.avatarUrl || undefined,
             onboardingCompleted: Boolean(user.onboardingCompleted)
         }

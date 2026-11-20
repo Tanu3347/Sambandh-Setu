@@ -15,9 +15,11 @@ const MAX_ATTEMPTS = 5;
 export default function VerifyOtpScreen({ navigation, route }: any) {
   const identifier: string = route.params?.identifier ?? route.params?.phone ?? '';
   const password = route.params?.password;
+  const purpose = route.params?.purpose || 'signup';
   const isEmail = identifier.includes('@');
   const targetDisplay = isEmail ? identifier : `+91 xxxxx xx${identifier.slice(-3)}`;
-  const [demoCode, setDemoCode] = useState<string | undefined>(route.params?.demoCode);
+  // Demo code is strictly for phone verification where no SMS gateway exists yet
+  const [demoCode, setDemoCode] = useState<string | undefined>(!isEmail ? route.params?.demoCode : undefined);
   const [code, setCode] = useState('');
   const [seconds, setSeconds] = useState(RESEND_SECONDS);
   const [attempts, setAttempts] = useState(0);
@@ -37,10 +39,10 @@ export default function VerifyOtpScreen({ navigation, route }: any) {
     setLoading(true);
     setError('');
     try {
-      const session = await verifyOtp(identifier, code, password);
+      const session = await verifyOtp(identifier, code, password, purpose);
       if (session) {
         setLoading(false);
-        if ((session as any).user?.onboardingCompleted) {
+        if ((session as any).user?.onboardingCompleted || purpose === 'login') {
           await signIn(session);
         } else {
           navigation.navigate('OnboardingBasics', { session }); // sign-in happens at the end of onboarding
@@ -65,11 +67,11 @@ export default function VerifyOtpScreen({ navigation, route }: any) {
     setCode('');
     setAttempts(0);
     try {
-      const r = await sendOtp(identifier);
-      setDemoCode(r.demoCode);
+      const r = await sendOtp(identifier, purpose);
+      if (!isEmail) setDemoCode(r.demoCode);
       setSeconds(RESEND_SECONDS);
     } catch (err: any) {
-      setError(err?.error?.message || "Couldn't send a new code. Try again.");
+      setError(err?.error?.message || err?.message || "Couldn't send a new code. Try again.");
     }
   };
 
@@ -83,17 +85,23 @@ export default function VerifyOtpScreen({ navigation, route }: any) {
       </Pressable>
 
       <Text style={styles.title}>{isEmail ? 'Verify your email' : 'Verify your number'}</Text>
-      <Text style={styles.sub}>We've sent a 6-digit code to</Text>
+      <Text style={styles.sub}>{isEmail ? "We've sent a 6-digit verification code to your email inbox:" : "We've sent a 6-digit code to"}</Text>
       <Text style={styles.phone}>{targetDisplay}</Text>
 
-      {!!demoCode && (
+      {/* Demo code is only shown for phone numbers because SMS gateway is not yet configured */}
+      {!isEmail && !!demoCode && (
         <View style={styles.demo}>
           <Ionicons name="information-circle-outline" size={16} color={colors.primary} />
           <Text style={styles.demoText}>
-            Code: <Text style={styles.demoCode}>{demoCode}</Text>
-            {isEmail ? ' (also sent to email inbox & CLI)' : ' (logged on backend CLI)'}
+            Demo code (SMS pending): <Text style={styles.demoCode}>{demoCode}</Text>
           </Text>
         </View>
+      )}
+
+      {isEmail && (
+        <Text style={styles.emailNote}>
+          Please check your inbox (and spam folder) for the code.
+        </Text>
       )}
 
       <View style={{ marginTop: spacing.xl }}>
@@ -147,6 +155,7 @@ const styles = StyleSheet.create({
   demoCode: { fontFamily: fonts.bold, fontSize: 14, letterSpacing: 2 },
   error: { fontFamily: fonts.regular, fontSize: 13, color: colors.danger, textAlign: 'center', marginTop: spacing.md },
   resend: { fontFamily: fonts.regular, fontSize: 13, textAlign: 'center', color: colors.muted, marginTop: spacing.lg },
+  emailNote: { fontFamily: fonts.regular, fontSize: 13, textAlign: 'center', color: colors.muted, marginTop: spacing.sm, paddingHorizontal: spacing.lg },
   bold: { fontFamily: fonts.bold, color: colors.text },
   timer: { fontFamily: fonts.regular, color: colors.muted },
 });

@@ -62,18 +62,14 @@ export async function devLogin(username = 'aanya'): Promise<{ token: string; use
 }
 
 export async function getMe(): Promise<User> {
-  if (USE_MOCK) return { id: 'u_aanya', name: 'Aanya Sharma' };
-  try {
-    const res = await request<{ user: any }>('/users');
-    const u = res.user;
-    return {
-      id: u.id || u._id,
-      name: u.displayName || [u.firstName, u.lastName].filter(Boolean).join(' ') || u.username,
-      avatar: u.avatarUrl,
-    };
-  } catch {
-    return { id: 'u_aanya', name: 'Aanya Sharma' };
-  }
+  if (USE_MOCK) return { id: 'u_user', name: 'User' };
+  const res = await request<{ user: any }>('/users');
+  const u = res.user;
+  return {
+    id: u.id || u._id,
+    name: u.displayName || [u.firstName, u.lastName].filter(Boolean).join(' ') || u.username,
+    avatar: u.avatarUrl,
+  };
 }
 
 // Helper to normalize phone / email for backend OTP endpoint
@@ -86,21 +82,27 @@ function toEmail(input: string): string {
 
 let demoOtp = '';
 
-export async function sendOtp(phoneOrEmail: string): Promise<{ demoCode?: string; message?: string }> {
+export async function sendOtp(phoneOrEmail: string, purpose: 'signup' | 'login' | 'reset' = 'signup'): Promise<{ demoCode?: string; message?: string; isPhone?: boolean }> {
+  const isPhone = !phoneOrEmail.includes('@');
   if (USE_MOCK) {
     await new Promise((r) => setTimeout(r, 400));
     demoOtp = String(Math.floor(100000 + Math.random() * 900000));
-    return { demoCode: demoOtp };
+    return { demoCode: isPhone ? demoOtp : undefined, isPhone };
   }
   const email = toEmail(phoneOrEmail);
-  const res = await request<{ message: string; code?: string }>('/auth/otp/request', {
+  const res = await request<{ message: string; code?: string; isPhone?: boolean }>('/auth/otp/request', {
     method: 'POST',
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({ email, isPhone, purpose }),
   });
-  return { demoCode: res?.code, message: res?.message };
+  return {
+    demoCode: isPhone ? res?.code : undefined,
+    message: res?.message,
+    isPhone,
+  };
 }
 
-export async function verifyOtp(phoneOrEmail: string, code: string, password?: string): Promise<{ token: string; user: User } | null> {
+export async function verifyOtp(phoneOrEmail: string, code: string, password?: string, purpose: 'signup' | 'login' | 'reset' = 'signup'): Promise<{ token: string; user: User } | null> {
+  const isPhone = !phoneOrEmail.includes('@');
   if (USE_MOCK) {
     await new Promise((r) => setTimeout(r, 400));
     return code === demoOtp || code === '123456'
@@ -108,7 +110,7 @@ export async function verifyOtp(phoneOrEmail: string, code: string, password?: s
       : null;
   }
   const email = toEmail(phoneOrEmail);
-  const payload: any = { email, code: code.trim() };
+  const payload: any = { email, code: code.trim(), isPhone, purpose };
   if (password) payload.password = password;
   const res = await request<{ token: string; user: any }>('/auth/otp/verify', {
     method: 'POST',
@@ -216,11 +218,9 @@ function mapBackendConnection(c: any): Connection {
     location: loc,
     city: loc,
     stage: stageKey,
-    stepNumber: c.journey?.stageNumber || 2,
-    totalSteps: c.journey?.totalStages || 8,
     photo: profile.avatarUrl || undefined,
     connectedSince: c.createdAt ? new Date(c.createdAt).toLocaleDateString() : 'Recently',
-  };
+  } as Connection;
 }
 
 export async function getHome(): Promise<HomeData> {
@@ -236,7 +236,7 @@ export async function getHome(): Promise<HomeData> {
       });
     }
     return {
-      userName: 'Aanya',
+      userName: '',
       unreadNotifications: store.received.length,
       attention,
       currentConnection: store.active[0] ?? null,
@@ -261,7 +261,7 @@ export async function getHome(): Promise<HomeData> {
   const stageKey: StageKey = (currentConn?.stage || 'connect') as StageKey;
 
   return {
-    userName: data.greeting ? data.greeting.replace(/^(Good morning|Good afternoon|Good evening),?\s*/i, '') : 'Aanya',
+    userName: data.userName || (data.greeting ? data.greeting.replace(/^(Good morning|Good afternoon|Good evening),?\s*/i, '') : ''),
     unreadNotifications: data.unreadNotifications || recCount,
     attention,
     currentConnection: currentConn,
@@ -465,17 +465,41 @@ export async function markAllNotificationsRead(): Promise<void> {
 }
 
 // ---------- Profile save ----------
-export type ProfilePatch = { name?: string; dob?: string; gender?: string; languages?: string[] };
+export type ProfilePatch = {
+  name?: string;
+  displayName?: string;
+  dob?: string;
+  gender?: string;
+  languages?: string[];
+  interests?: string[];
+  bio?: string;
+  education?: string;
+  profession?: string;
+  location?: string;
+  avatarUrl?: string;
+  photoUri?: string;
+  height?: string | number;
+  heightCm?: number;
+  lifestyle?: any;
+  family?: any;
+  preferences?: any;
+  builderAnswers?: any;
+  sections?: any;
+};
 
-export async function patchMyProfile(patch: ProfilePatch): Promise<void> {
+export async function patchMyProfile(patch: ProfilePatch): Promise<any> {
   if (USE_MOCK) {
     await new Promise((r) => setTimeout(r, 300));
     return;
   }
-  const body: any = {};
-  if (patch.name) body.name = patch.name;
+  const body: any = { ...patch };
+  if (patch.name && !patch.displayName) body.name = patch.name;
   if (patch.gender) body.gender = patch.gender;
-  if (patch.languages) body.interests = patch.languages;
+  if (patch.languages && !patch.interests) body.interests = patch.languages;
+  if (patch.photoUri && !patch.avatarUrl) body.avatarUrl = patch.photoUri;
+  delete body.languages;
+  delete body.photoUri;
+
   if (patch.dob && patch.dob.length === 10) {
     const parts = patch.dob.split('/').map(Number);
     const y = parts[2];
@@ -484,7 +508,19 @@ export async function patchMyProfile(patch: ProfilePatch): Promise<void> {
       if (age >= 18 && age <= 100) body.age = age;
     }
   }
+
+  if (patch.height && !patch.heightCm) {
+    const parsed = parseInt(String(patch.height), 10);
+    if (parsed >= 100 && parsed <= 250) {
+      body.heightCm = parsed;
+    }
+  }
+
   if (Object.keys(body).length > 0) {
-    await request('/users/profile', { method: 'PATCH', body: JSON.stringify(body) }).catch(() => {});
+    const res = await request<{ profile: any }>('/users/profile', {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
+    return res?.profile;
   }
 }

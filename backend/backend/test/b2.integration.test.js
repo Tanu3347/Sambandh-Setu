@@ -3,7 +3,8 @@ require("dotenv").config();
 const assert = require("node:assert/strict");
 const http = require("node:http");
 const { after, before, test } = require("node:test");
-const mongoose = require("mongoose");
+const { isReady, closeDb } = require("../db");
+const { seedUsers } = require("../seed/seedUsers");
 const Connection = require("../models/Connection");
 const ConnectionRequest = require("../models/ConnectionRequest");
 const ReflectionAnswer = require("../models/ReflectionAnswer");
@@ -78,21 +79,8 @@ const answerFor = (question) => {
 };
 
 const connectWithRetry = async () => {
-    for (let attempt = 1; attempt <= 3; attempt += 1) {
-        try {
-            await connectDB();
-            return;
-        } catch (error) {
-            const transientConnectionError =
-                error.name === "MongoNetworkError" ||
-                error.name === "MongooseServerSelectionError";
-            if (!transientConnectionError || attempt === 3) {
-                throw error;
-            }
-            await mongoose.disconnect();
-            await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
-        }
-    }
+    await connectDB();
+    await seedUsers();
 };
 
 before(async () => {
@@ -121,6 +109,9 @@ before(async () => {
     assert.equal(questions.length, 10);
 
     const pairKey = [String(aanyaId), String(rohanId)].sort().join(":");
+    await Connection.deleteMany({ pairKey });
+    await ConnectionRequest.deleteMany({ pairKey });
+
     assert.equal(
         await Connection.exists({ pairKey, status: "active" }),
         null,
@@ -167,7 +158,7 @@ before(async () => {
 });
 
 after(async () => {
-    if (mongoose.connection.readyState === 1) {
+    if (isReady()) {
         if (connectionId) {
             await ReflectionAnswer.deleteMany({ connection: connectionId });
             await Connection.deleteOne({ _id: connectionId });
@@ -187,12 +178,10 @@ after(async () => {
             server.close((error) => (error ? reject(error) : resolve()));
         });
     }
-    if (mongoose.connection.readyState !== 0) {
-        await mongoose.disconnect();
-    }
+    closeDb();
 });
 
-test("B2 MongoDB integration: journey progression, reflection resume and privacy", async (t) => {
+test("B2 integration: journey progression, reflection resume and privacy", async (t) => {
     await t.test("journey and stage content are scoped to connection members and marked mock", async () => {
         const [journey, content, outsider] = await Promise.all([
             apiRequest(`/connections/${connectionId}/journey`, { token: aanyaToken }),

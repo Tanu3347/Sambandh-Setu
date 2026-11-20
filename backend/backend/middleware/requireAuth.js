@@ -1,7 +1,7 @@
 const jwt = require("jsonwebtoken");
-const mongoose = require("mongoose");
 const User = require("../models/User");
 const ApiError = require("../utils/ApiError");
+const { isValidId } = require("../utils/validation");
 
 const requireAuth = async (req, res, next) => {
     const authorization = req.get("authorization") || "";
@@ -33,13 +33,11 @@ const requireAuth = async (req, res, next) => {
         return next(error);
     }
 
-    if (!mongoose.isValidObjectId(claims.sub)) {
+    if (!isValidId(claims.sub)) {
         return next(ApiError.unauthorized("Session token is invalid"));
     }
 
-    const user = await User.findById(claims.sub).select(
-        "_id username firstName lastName isActive sharingDefault"
-    );
+    const user = await User.findById(claims.sub);
     if (!user || !user.isActive) {
         return next(ApiError.unauthorized("Session user is no longer available"));
     }

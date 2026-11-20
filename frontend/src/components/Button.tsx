@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, ViewStyle } from 'react-native';
+import { ActivityIndicator, Pressable, StyleProp, StyleSheet, Text, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts, MIN_TAP, radius, shadow } from '../theme';
 
@@ -14,7 +14,7 @@ type Props = {
   arrow?: boolean; // arrow icon after the title, like "Get Started"
   icon?: string; // Ionicons name before the title, like "close" or "heart"
   small?: boolean; // compact size for list rows
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
 };
 

@@ -112,13 +112,38 @@ const keyFor = (userId: string) => `setu_sections:${userId}`;
 
 export async function getSectionValues(userId: string): Promise<SectionValues> {
   const base = userId === 'u_aanya' ? DEMO : {};
+  let remoteSections: Record<string, any> = {};
+
+  if (!USE_MOCK) {
+    try {
+      const res = await request<{ profile: any }>('/users/profile');
+      if (res?.profile) {
+        const p = res.profile;
+        if (p.sections && typeof p.sections === 'object') {
+          remoteSections = { ...p.sections };
+        }
+        if (p.preferences && typeof p.preferences === 'object') {
+          for (const [secId, prefKey] of Object.entries(PREF_MAP)) {
+            if (p.preferences[prefKey]) {
+              remoteSections[secId] = { ...(remoteSections[secId] || {}), ...p.preferences[prefKey] };
+            }
+          }
+        }
+      }
+    } catch {
+      // fallback to local
+    }
+  }
+
   let saved: SectionValues = {};
   try {
     const raw = await AsyncStorage.getItem(keyFor(userId));
     saved = raw ? JSON.parse(raw) : {};
   } catch { /* use the defaults */ }
   const out: SectionValues = {};
-  for (const s of SECTIONS) out[s.id] = { ...(base[s.id] ?? {}), ...(saved[s.id] ?? {}) };
+  for (const s of SECTIONS) {
+    out[s.id] = { ...(base[s.id] ?? {}), ...(saved[s.id] ?? {}), ...(remoteSections[s.id] ?? {}) };
+  }
   return out;
 }
 
@@ -132,7 +157,16 @@ export async function saveSection(userId: string, sectionId: string, values: Rec
   await AsyncStorage.setItem(keyFor(userId), JSON.stringify(saved));
 
   if (!USE_MOCK) {
+    const patchObj: any = { sections: { [sectionId]: values } };
     const prefSection = PREF_MAP[sectionId];
+    if (prefSection) {
+      patchObj.preferences = { [prefSection]: values };
+    }
+    await request('/users/profile', {
+      method: 'PATCH',
+      body: JSON.stringify(patchObj),
+    }).catch((err) => console.warn('saveSection profile sections sync notice:', err));
+
     if (prefSection) {
       await request(`/users/preferences/${prefSection}`, {
         method: 'PATCH',

@@ -52,11 +52,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (await getToken()) {
           const stored = await AsyncStorage.getItem(USER_KEY);
           if (stored) {
-            setUser(JSON.parse(stored)); // the same user as before, with the same name and photo
-          } else if (!USE_MOCK) {
-            setUser(await getMe());
-          } else {
-            await clearToken(); // old login with no saved user: start fresh
+            setUser(JSON.parse(stored)); // immediate display from cache
+          }
+          if (!USE_MOCK) {
+            // Always fetch current user from backend database
+            const freshUser = await getMe();
+            if (freshUser) {
+              setUser(freshUser);
+              await AsyncStorage.setItem(USER_KEY, JSON.stringify(freshUser));
+            }
           }
         }
       } catch {
@@ -98,14 +102,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await signIn(session);
   };
 
-  // Called from the "What's your name?" screen
+  // Called from the "What's your name?" screen or edit profile
   const updateName = async (name: string) => {
     if (!user) return;
-    const updated = { ...user, name };
-    await AsyncStorage.setItem(USER_KEY, JSON.stringify(updated));
-    setUser(updated);
     if (!USE_MOCK) {
-      await patchMyProfile({ name }).catch(() => {});
+      const updatedProfile = await patchMyProfile({ name });
+      const resolvedName = updatedProfile?.name || updatedProfile?.user?.displayName || name;
+      const updated = { ...user, name: resolvedName };
+      await AsyncStorage.setItem(USER_KEY, JSON.stringify(updated));
+      setUser(updated);
+    } else {
+      const updated = { ...user, name };
+      await AsyncStorage.setItem(USER_KEY, JSON.stringify(updated));
+      setUser(updated);
     }
   };
 

@@ -1,8 +1,8 @@
 require("dotenv").config();
 
 const crypto = require("node:crypto");
-const mongoose = require("mongoose");
 const connectDB = require("../config/db");
+const { closeDb } = require("../db");
 const User = require("../models/User");
 const Profile = require("../models/Profile");
 const seedB2 = require("./seedB2");
@@ -11,6 +11,7 @@ const fictionalUsers = [
     {
         username: "aanya",
         firstName: "Aanya",
+        lastName: "Sharma",
         age: 27,
         gender: "Woman",
         heightCm: 162,
@@ -24,6 +25,7 @@ const fictionalUsers = [
     {
         username: "rohan",
         firstName: "Rohan",
+        lastName: "Verma",
         age: 29,
         gender: "Man",
         heightCm: 178,
@@ -37,6 +39,7 @@ const fictionalUsers = [
     {
         username: "karthik",
         firstName: "Karthik",
+        lastName: "Reddy",
         age: 28,
         gender: "Man",
         heightCm: 175,
@@ -50,6 +53,7 @@ const fictionalUsers = [
     {
         username: "arjun",
         firstName: "Arjun",
+        lastName: "Mehta",
         age: 30,
         gender: "Man",
         heightCm: 181,
@@ -63,6 +67,7 @@ const fictionalUsers = [
     {
         username: "varun",
         firstName: "Varun",
+        lastName: "Kapoor",
         age: 29,
         gender: "Man",
         heightCm: 176,
@@ -76,6 +81,7 @@ const fictionalUsers = [
     {
         username: "siddharth",
         firstName: "Siddharth",
+        lastName: "Malhotra",
         age: 31,
         gender: "Man",
         heightCm: 180,
@@ -89,6 +95,7 @@ const fictionalUsers = [
     {
         username: "aditya",
         firstName: "Aditya",
+        lastName: "Nair",
         age: 28,
         gender: "Man",
         heightCm: 174,
@@ -116,6 +123,7 @@ const fictionalUsers = [
     {
         username: "nikhil",
         firstName: "Nikhil",
+        lastName: "Joshi",
         age: 29,
         gender: "Man",
         heightCm: 179,
@@ -126,26 +134,32 @@ const fictionalUsers = [
         lifestyle: { routine: "Enjoys time outdoors and community activities.", interests: ["Hiking", "Volunteering"] },
         family: { background: "A supportive family that values compassion.", involvement: "Family relationships are a priority." }
     }
-].map((user) => ({ ...user, lastName: user.lastName || "" }));
+];
 
 const seedUsers = async () => {
     await connectDB();
 
     for (const fixture of fictionalUsers) {
-        let user = await User.findOne({ username: fixture.username }).select("+passwordHash +isSeeded");
+        let user = await User.findOne({ username: fixture.username });
+        const fullName = [fixture.firstName, fixture.lastName].filter(Boolean).join(" ");
         if (!user) {
             user = new User({
                 username: fixture.username,
                 email: `${fixture.username}@example.test`,
+                displayName: fullName,
                 firstName: fixture.firstName,
                 lastName: fixture.lastName,
+                onboardingCompleted: true,
                 isSeeded: true
             });
-            await user.setPassword(crypto.randomBytes(32).toString("hex"));
+            await user.setPassword("Password123!");
         } else {
+            user.displayName = fullName;
             user.firstName = fixture.firstName;
             user.lastName = fixture.lastName;
+            user.onboardingCompleted = true;
             user.isSeeded = true;
+            await user.setPassword("Password123!");
         }
         await user.save();
 
@@ -161,15 +175,19 @@ const seedUsers = async () => {
     console.log(`Seeded ${fictionalUsers.length} fictional Sambandh Setu users and profiles.`);
 };
 
-seedUsers()
-    .catch((error) => {
-        console.error(
-            "User seeding failed: name=%s code=%s",
-            error.name || "Error",
-            error.code || "none"
-        );
-        process.exitCode = 1;
-    })
-    .finally(async () => {
-        await mongoose.disconnect();
-    });
+if (require.main === module) {
+    seedUsers()
+        .catch((error) => {
+            console.error(
+                "User seeding failed: name=%s code=%s",
+                error.name || "Error",
+                error.code || "none"
+            );
+            process.exitCode = 1;
+        })
+        .finally(() => {
+            closeDb();
+        });
+}
+
+module.exports = { seedUsers, fictionalUsers };

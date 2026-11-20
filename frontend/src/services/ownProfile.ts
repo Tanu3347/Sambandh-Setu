@@ -90,18 +90,30 @@ export function useOwnProfile(): OwnProfile {
       let alive = true;
       (async () => {
         try {
-          const [p, a, my] = await Promise.all([
+          const my = await getMyProfile().catch(() => null);
+          const [p, a] = await Promise.all([
             AsyncStorage.getItem(PROFILE_KEY),
             AsyncStorage.getItem(BUILDER_ANSWERS_KEY),
-            getMyProfile().catch(() => null), // what Edit Profile saved
           ]);
-          // values saved by Edit Profile override the ones from sign-up
-          const edited = Object.fromEntries(Object.entries((my ?? {}) as Bag).filter(([, v]) => v !== undefined && v !== null));
-          const saved: Bag = { ...(p ? JSON.parse(p) : {}), ...edited };
-          const answers: Bag = a ? JSON.parse(a) : {};
-          if (alive) setProfile(buildOwnProfile(user?.name || saved.name || '', saved, answers));
+          const localSaved: Bag = p ? JSON.parse(p) : {};
+          const localAnswers: Bag = a ? JSON.parse(a) : {};
+          const remoteBag: Bag = my ? {
+            name: my.name,
+            gender: my.gender,
+            bio: my.bio,
+            education: my.education,
+            profession: my.profession,
+            location: my.location,
+            height: my.height,
+            photoUri: my.photoUri,
+            languages: my.languages,
+            age: my.age,
+          } : {};
+          const saved: Bag = { ...localSaved, ...remoteBag };
+          const resolvedName = my?.name || user?.name || saved.name || '';
+          if (alive) setProfile(buildOwnProfile(resolvedName, saved, localAnswers));
         } catch {
-          /* keep the name-only profile */
+          /* keep current profile */
         }
       })();
       return () => { alive = false; };

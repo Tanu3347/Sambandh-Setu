@@ -45,11 +45,12 @@ const getHome = async (req, res) => {
 
     const hour = new Date().getHours();
     const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-    const displayName = [req.user.firstName, req.user.lastName].filter(Boolean).join(" ");
+    const displayName = req.user.displayName || [req.user.firstName, req.user.lastName].filter(Boolean).join(" ") || req.user.username || "";
 
     res.json({
         data: {
-            greeting: `${greeting}, ${displayName}`,
+            greeting: displayName ? `${greeting}, ${displayName}` : greeting,
+            userName: displayName,
             profileComplete: Boolean(ownProfile),
             needsYourAttention: { receivedRequests, sentRequests },
             currentConnection,

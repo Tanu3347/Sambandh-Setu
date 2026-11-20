@@ -7,10 +7,10 @@ import { useAuth } from '../../context/AuthContext';
 export default function AccountScreen({ navigation }: any) {
   const { user } = useAuth() as any;
 
-  // Adjust these to match the fields on your real user object
-  const name: string = user?.name ?? 'Aanya K';
-  const phone: string = user?.phone ?? '+91 98765 43210';
-  const email: string = user?.email ?? 'aanya.k@example.com';
+  // Fields from the signed-in user object
+  const name: string = user?.displayName || user?.name || 'Member';
+  const phone: string = user?.phone || '';
+  const email: string = user?.email || '';
   const initial = name.trim().charAt(0).toUpperCase();
 
   return (

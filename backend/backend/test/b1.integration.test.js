@@ -3,7 +3,8 @@ require("dotenv").config();
 const assert = require("node:assert/strict");
 const http = require("node:http");
 const { after, before, test } = require("node:test");
-const mongoose = require("mongoose");
+const { isReady, closeDb } = require("../db");
+const { seedUsers } = require("../seed/seedUsers");
 const Connection = require("../models/Connection");
 const ConnectionRequest = require("../models/ConnectionRequest");
 const Notification = require("../models/Notification");
@@ -80,6 +81,7 @@ before(async () => {
     );
 
     await connectDB();
+    await seedUsers();
 
     const seededUsers = await User.find({
         username: { $in: seededUsernames },
@@ -93,6 +95,9 @@ before(async () => {
     const rohan = seededUsers.find((user) => user.username === "rohan");
     assert.ok(aanya && rohan, "Aanya and Rohan must be seeded");
     pairKey = [String(aanya._id), String(rohan._id)].sort().join(":");
+
+    await Connection.deleteMany({ pairKey });
+    await ConnectionRequest.deleteMany({ pairKey });
 
     const [existingConnection, existingPendingRequest] = await Promise.all([
         Connection.exists({ pairKey, status: "active" }),
@@ -110,7 +115,7 @@ before(async () => {
 });
 
 after(async () => {
-    if (mongoose.connection.readyState === 1) {
+    if (isReady()) {
         if (requestId) {
             await Notification.deleteMany({ request: requestId });
             await Connection.deleteMany({ request: requestId });
@@ -125,11 +130,11 @@ after(async () => {
                 server.close((error) => (error ? reject(error) : resolve()));
             });
         }
-        await mongoose.disconnect();
+        closeDb();
     }
 });
 
-test("B1 MongoDB integration: seeded-user request and connection lifecycle", async (t) => {
+test("B1 integration: seeded-user request and connection lifecycle", async (t) => {
     let aanyaToken;
     let rohanToken;
     let karthikToken;

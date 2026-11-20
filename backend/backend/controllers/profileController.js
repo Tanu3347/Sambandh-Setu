@@ -5,17 +5,24 @@ const { serializeProfile } = require("../utils/serializers");
 
 const PROFILE_FIELDS = new Set([
     "name",
+    "displayName",
     "age",
+    "dob",
     "gender",
     "heightCm",
+    "height",
     "avatarUrl",
     "profileStatus",
     "bio",
     "education",
     "profession",
+    "location",
     "interests",
     "lifestyle",
-    "family"
+    "family",
+    "preferences",
+    "builderAnswers",
+    "sections"
 ]);
 const PREFERENCE_SECTIONS = new Set([
     "basic",
@@ -58,7 +65,7 @@ const validateNestedProfile = (value, field, allowedFields) => {
         throw ApiError.badRequest(`${field} must be an object`, [{ field }]);
     }
     for (const key of Object.keys(value)) {
-        if (!allowedFields.has(key)) {
+        if (allowedFields && allowedFields.size > 0 && !allowedFields.has(key)) {
             throw ApiError.badRequest(`Unsupported ${field} field: ${key}`, [{ field: `${field}.${key}` }]);
         }
     }
@@ -66,10 +73,14 @@ const validateNestedProfile = (value, field, allowedFields) => {
     const result = {};
     for (const [key, item] of Object.entries(value)) {
         const path = `${field}.${key}`;
-        if (key === "interests") {
+        if (key === "interests" || Array.isArray(item)) {
             result[key] = validateStringList(item, path);
-        } else {
-            result[key] = validateText(item, path, 300);
+        } else if (typeof item === "string") {
+            result[key] = validateText(item, path, 500);
+        } else if (typeof item === "number" || typeof item === "boolean") {
+            result[key] = item;
+        } else if (isPlainObject(item)) {
+            result[key] = item;
         }
     }
     return result;
@@ -87,7 +98,20 @@ const validateProfilePatch = (body) => {
         }
         switch (field) {
             case "name":
-                result[field] = validateText(value, field, 100, { allowEmpty: false });
+            case "displayName":
+                result[field] = validateText(value, field, 120, { allowEmpty: false });
+                break;
+            case "dob":
+                result[field] = validateText(value, field, 20);
+                break;
+            case "height":
+                if (typeof value === "number") {
+                    result[field] = value;
+                } else if (typeof value === "string") {
+                    result[field] = validateText(value, field, 30);
+                } else {
+                    throw ApiError.badRequest("height must be a string or number", [{ field }]);
+                }
                 break;
             case "age":
                 if (!Number.isInteger(value) || value < 18 || value > 100) {
@@ -118,16 +142,31 @@ const validateProfilePatch = (body) => {
                 break;
             case "education":
             case "profession":
+            case "location":
                 result[field] = validateText(value, field, 120);
                 break;
             case "interests":
                 result[field] = validateStringList(value, field);
                 break;
             case "lifestyle":
-                result[field] = validateNestedProfile(value, field, new Set(["routine", "interests"]));
+                result[field] = validateNestedProfile(value, field, new Set([
+                    "routine", "interests", "description", "livingPref", "careerGrowth",
+                    "hobbies", "food", "travel", "music", "movies", "fitness", "values"
+                ]));
                 break;
             case "family":
-                result[field] = validateNestedProfile(value, field, new Set(["background", "involvement"]));
+                result[field] = validateNestedProfile(value, field, new Set([
+                    "background", "involvement", "father", "mother", "familyType",
+                    "siblings", "familyValues", "religion", "caste", "known", "comfortable", "meeting"
+                ]));
+                break;
+            case "preferences":
+            case "builderAnswers":
+            case "sections":
+                if (!isPlainObject(value)) {
+                    throw ApiError.badRequest(`${field} must be an object`, [{ field }]);
+                }
+                result[field] = value;
                 break;
             default:
                 throw ApiError.badRequest(`Unsupported profile field: ${field}`, [{ field }]);
@@ -216,19 +255,62 @@ const getMyPreferences = async (req, res) => {
 
 const updateMyProfile = async (req, res) => {
     const updates = validateProfilePatch(req.body);
-    if (updates.name) {
-        const parts = updates.name.split(" ");
-        await User.findByIdAndUpdate(req.user._id, {
-            firstName: parts[0],
-            lastName: parts.slice(1).join(" ")
-        });
+    let userUpdated = false;
+    const userUpdates = {};
+
+    const newName = updates.displayName || updates.name;
+    if (newName) {
+        const trimmedName = newName.trim();
+        const parts = trimmedName.split(/\s+/);
+        userUpdates.displayName = trimmedName;
+        userUpdates.firstName = parts[0] || trimmedName;
+        userUpdates.lastName = parts.slice(1).join(" ") || "";
+        userUpdates.onboardingCompleted = true;
+        userUpdated = true;
         delete updates.name;
+        delete updates.displayName;
     }
-    const profile = await Profile.findOneAndUpdate(
-        { user: req.user._id },
-        { $set: updates },
-        { returnDocument: "after", runValidators: true }
-    ).populate("user", "username firstName lastName");
+
+    if (userUpdated) {
+        await User.findByIdAndUpdate(req.user._id, { $set: userUpdates });
+    }
+
+    if (updates.height && !updates.heightCm) {
+        const parsed = parseInt(String(updates.height), 10);
+        if (parsed >= 100 && parsed <= 250) {
+            updates.heightCm = parsed;
+        }
+        delete updates.height;
+    } else if (updates.height) {
+        delete updates.height;
+    }
+
+    if (updates.dob) {
+        if (!updates.age) {
+            const m = String(updates.dob).match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
+            if (m) {
+                const y = Number(m[3]);
+                const calcAge = new Date().getFullYear() - y;
+                if (calcAge >= 18 && calcAge <= 100) {
+                    updates.age = calcAge;
+                }
+            }
+        }
+        delete updates.dob;
+    }
+
+    let profile;
+    if (Object.keys(updates).length > 0) {
+        profile = await Profile.findOneAndUpdate(
+            { user: req.user._id },
+            { $set: updates },
+            { returnDocument: "after", runValidators: true }
+        ).populate("user", "username displayName firstName lastName onboardingCompleted");
+    } else {
+        profile = await Profile.findOne({ user: req.user._id })
+            .populate("user", "username displayName firstName lastName onboardingCompleted");
+    }
+
     if (!profile) {
         throw ApiError.notFound("Profile not found");
     }

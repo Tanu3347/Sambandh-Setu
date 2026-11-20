@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
+import { patchMyProfile } from '../../services/api';
 
 import { STEPS, Step } from './config';
 import { C, ImageTileGrid, RadioList, ChipSelect, TextArea } from './fields';
@@ -86,7 +87,18 @@ export default function ProfileBuilderScreen() {
     setSaving(true);
     setError(null);
     try {
-      // TODO (Bharrath's API): await profileApi.saveBuilderAnswers(answers);
+      // Sync builder answers directly to backend database
+      await patchMyProfile({
+        builderAnswers: answers,
+        bio: typeof answers.about === 'string' && answers.about.trim() ? answers.about.trim() : undefined,
+        interests: Array.isArray(answers.interests) ? (answers.interests as string[]) : undefined,
+        lifestyle: {
+          description: typeof answers.lifestyle === 'string' ? answers.lifestyle : '',
+          livingPref: typeof answers.livingPref === 'string' ? answers.livingPref : '',
+          careerGrowth: typeof answers.careerGrowth === 'string' ? answers.careerGrowth : '',
+        },
+      });
+
       // keep the final answers so My Profile can show them (the draft below is only for resuming)
       await AsyncStorage.setItem('setu_builder_answers', JSON.stringify(answers));
       await AsyncStorage.removeItem(STORAGE_KEY);

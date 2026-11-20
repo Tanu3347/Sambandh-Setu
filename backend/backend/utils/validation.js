@@ -1,8 +1,14 @@
-const mongoose = require("mongoose");
 const ApiError = require("./ApiError");
 
+const isValidId = (value) => {
+    return typeof value === "string" && (
+        /^[0-9a-fA-F]{24}$/.test(value) ||
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
+    );
+};
+
 const requireObjectId = (value, fieldName) => {
-    if (typeof value !== "string" || !mongoose.isValidObjectId(value)) {
+    if (!isValidId(value)) {
         throw ApiError.badRequest(`${fieldName} must be a valid ID`, [{ field: fieldName }]);
     }
     return value;
@@ -49,4 +55,4 @@ const parseFilters = (value) => {
 
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-module.exports = { requireObjectId, requireString, parseFilters, escapeRegex };
+module.exports = { isValidId, requireObjectId, requireString, parseFilters, escapeRegex };

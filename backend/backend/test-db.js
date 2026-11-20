@@ -1,35 +1,18 @@
-require("dotenv").config();
-
-const { MongoClient } = require("mongodb");
+const path = require("path");
+const { initDb, getDb, closeDb } = require("./db");
 
 async function testConnection() {
-   const client = new MongoClient(process.env.MONGODB_URI, {
-    serverSelectionTimeoutMS: 15000,
-    connectTimeoutMS: 15000
-});
     try {
-        await client.connect();
-
-        console.log("MongoDB driver connected!");
-
-        const result = await client.db("admin").command({ ping: 1 });
-
-        console.log("Ping successful:", result);
+        const dbPath = path.join(__dirname, "sambandh_setu.db");
+        initDb(dbPath);
+        const db = getDb();
+        const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all();
+        console.log("SQLite tables:", tables.map(t => t.name));
+        console.log("SQLite connection successful!");
     } catch (error) {
-        console.error(
-            "Connection failed: name=%s code=%s",
-            error.name || "Error",
-            error.code || "none"
-        );
-
-        let cause = error.cause;
-
-        while (cause) {
-            console.error("Cause: name=%s code=%s", cause.name || "Error", cause.code || "none");
-            cause = cause.cause;
-        }
+        console.error("Connection failed:", error);
     } finally {
-        await client.close().catch(() => {});
+        closeDb();
     }
 }
 

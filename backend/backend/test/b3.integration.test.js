@@ -3,7 +3,8 @@ require("dotenv").config();
 const assert = require("node:assert/strict");
 const http = require("node:http");
 const { after, before, test } = require("node:test");
-const mongoose = require("mongoose");
+const { isReady, closeDb } = require("../db");
+const { seedUsers } = require("../seed/seedUsers");
 const Chat = require("../models/Chat");
 const Connection = require("../models/Connection");
 const ConnectionRequest = require("../models/ConnectionRequest");
@@ -64,21 +65,8 @@ const apiRequest = (path, { method = "GET", token, body } = {}) =>
     });
 
 const connectWithRetry = async () => {
-    for (let attempt = 1; attempt <= 3; attempt += 1) {
-        try {
-            await connectDB();
-            return;
-        } catch (error) {
-            const transientConnectionError =
-                error.name === "MongoNetworkError" ||
-                error.name === "MongooseServerSelectionError";
-            if (!transientConnectionError || attempt === 3) {
-                throw error;
-            }
-            await mongoose.disconnect();
-            await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
-        }
-    }
+    await connectDB();
+    await seedUsers();
 };
 
 const login = async (username) => {
@@ -157,7 +145,7 @@ before(async () => {
 });
 
 after(async () => {
-    if (mongoose.connection.readyState === 1) {
+    if (isReady()) {
         if (connectionId) {
             const chat = await Chat.findOne({ connection: connectionId }).select("_id").lean();
             if (chat) {
@@ -177,11 +165,11 @@ after(async () => {
                 server.close((error) => (error ? reject(error) : resolve()));
             });
         }
-        await mongoose.disconnect();
+        closeDb();
     }
 });
 
-test("B3 MongoDB integration: connection-scoped chat and profile/preferences APIs", async (t) => {
+test("B3 integration: connection-scoped chat and profile/preferences APIs", async (t) => {
     let chatPath;
 
     await t.test("members list their connection chat and outsiders cannot", async () => {

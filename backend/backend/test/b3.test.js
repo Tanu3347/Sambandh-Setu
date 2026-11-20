@@ -98,6 +98,17 @@ test("profile updates allow only validated editable fields", () => {
     assert.deepEqual(validateProfilePatch({ lifestyle: { interests: ["reading"] } }), {
         lifestyle: { interests: ["reading"] }
     });
+    assert.deepEqual(validateProfilePatch({
+        name: " Adarsh Sharma ",
+        dob: "15/08/1998",
+        height: "175 cm",
+        builderAnswers: { about: "test" }
+    }), {
+        name: "Adarsh Sharma",
+        dob: "15/08/1998",
+        height: "175 cm",
+        builderAnswers: { about: "test" }
+    });
     assert.throws(() => validateProfilePatch({ user: "another-user" }), {
         code: "VALIDATION_ERROR"
     });

@@ -42,7 +42,7 @@ export default function EditProfileScreen({ navigation }: any) {
         builderBio = typeof a.about === 'string' ? a.about : '';
       } catch { /* no builder answers */ }
 
-      setName(user?.name ?? '');
+      setName(p?.name || user?.name || '');
       setBio(p?.bio ?? (builderBio || (isDemoUser ? demo.bio : '')));
       setHeight(p?.height ?? (isDemoUser ? demo.height : ''));
       setEducation(p?.education ?? (isDemoUser ? demo.education : ''));

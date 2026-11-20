@@ -57,7 +57,7 @@ export default function ProfileDetailScreen({ navigation, route }: any) {
   useFocusEffect(useCallback(() => {
     if (!editable) return;
     (async () => {
-      setOwn(userId === 'u_aanya' ? PROFILES.u_aanya : await buildOwnProfile(user?.name ?? ''));
+      setOwn(await buildOwnProfile(user?.name ?? ''));
       setValues(await getSectionValues(userId));
     })();
   }, [editable, userId, user?.name]));
@@ -67,39 +67,36 @@ export default function ProfileDetailScreen({ navigation, route }: any) {
     const targetId = params.personId ?? params.profileId;
     if (!targetId) return;
 
-    const local = findMatch(targetId);
-    if (local) setMatch(local);
-
     if (!USE_MOCK) {
       request<{ profile: any }>(`/profiles/${targetId}`)
         .then((res) => {
           const raw = res?.profile || res;
           if (raw) {
             const u = raw.user || {};
-            const name = u.displayName || [u.firstName, u.lastName].filter(Boolean).join(' ') || u.username || raw.name || 'Member';
+            const name = raw.name || raw.displayName || u.displayName || [u.firstName, u.lastName].filter(Boolean).join(' ') || u.username || 'Member';
             setMatch({
               name,
-              age: raw.age || 28,
-              gender: raw.gender || 'Not specified',
-              height: raw.heightCm ? `${raw.heightCm} cm` : `5'9"`,
-              education: raw.education || 'Professional',
-              profession: raw.profession || 'Software Engineer',
-              location: raw.lifestyle?.routine ? 'Bengaluru' : 'India',
+              age: raw.age || 0,
+              gender: raw.gender && raw.gender !== 'Not specified' ? raw.gender : '',
+              height: raw.heightCm ? `${raw.heightCm} cm` : '',
+              education: raw.education || '',
+              profession: raw.profession || '',
+              location: raw.location || '',
               bio: raw.bio || '',
               about: [
                 {
                   title: 'Personal Details',
                   rows: [
                     { icon: 'person-outline', label: 'Name', value: name },
-                    { icon: 'location-outline', label: 'City', value: raw.lifestyle?.routine ? 'Bengaluru' : 'India' },
-                    { icon: 'language-outline', label: 'Languages', value: (raw.interests || ['English', 'Hindi']).join(', ') },
+                    { icon: 'location-outline', label: 'City', value: raw.location || '' },
+                    { icon: 'language-outline', label: 'Languages', value: (raw.interests || []).join(', ') },
                   ],
                 },
                 {
                   title: 'Education & Career',
                   rows: [
-                    { icon: 'school-outline', label: 'Education', value: raw.education || 'Graduate' },
-                    { icon: 'briefcase-outline', label: 'Profession', value: raw.profession || 'Professional' },
+                    { icon: 'school-outline', label: 'Education', value: raw.education || '' },
+                    { icon: 'briefcase-outline', label: 'Profession', value: raw.profession || '' },
                   ],
                 },
               ],
@@ -108,7 +105,13 @@ export default function ProfileDetailScreen({ navigation, route }: any) {
             });
           }
         })
-        .catch(() => {});
+        .catch(() => {
+          const local = findMatch(targetId);
+          if (local) setMatch(local);
+        });
+    } else {
+      const local = findMatch(targetId);
+      if (local) setMatch(local);
     }
   }, [editable, params.personId, params.profileId]);
 

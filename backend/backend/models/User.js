@@ -33,7 +33,24 @@ class User {
     async save() {
         const db = getDb();
         this.updatedAt = new Date();
-        const existing = await db.prepare("SELECT id FROM users WHERE id = ?").get(this.id);
+        let existing = null;
+        if (this.id) {
+            existing = await db.prepare("SELECT id FROM users WHERE id = ?").get(this.id);
+        }
+        if (!existing && this.username) {
+            existing = await db.prepare("SELECT id FROM users WHERE username = ?").get(this.username);
+            if (existing) {
+                this.id = existing.id;
+                this._id = existing.id;
+            }
+        }
+        if (!existing && this.email) {
+            existing = await db.prepare("SELECT id FROM users WHERE email = ?").get(this.email);
+            if (existing) {
+                this.id = existing.id;
+                this._id = existing.id;
+            }
+        }
         if (existing) {
             await db.prepare(`
                 UPDATE users SET

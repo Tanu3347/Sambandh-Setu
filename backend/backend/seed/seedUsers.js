@@ -2,7 +2,7 @@ require("dotenv").config();
 
 const crypto = require("node:crypto");
 const connectDB = require("../config/db");
-const { closeDb } = require("../db");
+const { closeDb, isReady } = require("../db");
 const User = require("../models/User");
 const Profile = require("../models/Profile");
 const seedB2 = require("./seedB2");
@@ -137,7 +137,9 @@ const fictionalUsers = [
 ];
 
 const seedUsers = async () => {
-    await connectDB();
+    if (!isReady()) {
+        await connectDB();
+    }
 
     for (const fixture of fictionalUsers) {
         let user = await User.findOne({ username: fixture.username });

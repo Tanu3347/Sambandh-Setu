@@ -34,7 +34,17 @@ class Connection {
         const db = getDb();
         this.updatedAt = new Date();
         const requestId = typeof this.request === "object" && this.request ? (this.request.id || this.request._id) : this.request;
-        const existing = await db.prepare("SELECT id FROM connections WHERE id = ?").get(this.id);
+        let existing = null;
+        if (this.id) {
+            existing = await db.prepare("SELECT id FROM connections WHERE id = ?").get(this.id);
+        }
+        if (!existing && this.pairKey) {
+            existing = await db.prepare("SELECT id FROM connections WHERE pair_key = ?").get(this.pairKey);
+            if (existing) {
+                this.id = existing.id;
+                this._id = existing.id;
+            }
+        }
         if (existing) {
             await db.prepare(`
                 UPDATE connections SET

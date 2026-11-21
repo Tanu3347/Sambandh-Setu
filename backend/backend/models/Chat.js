@@ -16,7 +16,17 @@ class Chat {
         const db = getDb();
         this.updatedAt = new Date();
         const connId = typeof this.connection === "object" && this.connection ? (this.connection.id || this.connection._id) : this.connection;
-        const existing = await db.prepare("SELECT id FROM chats WHERE id = ?").get(this.id);
+        let existing = null;
+        if (this.id) {
+            existing = await db.prepare("SELECT id FROM chats WHERE id = ?").get(this.id);
+        }
+        if (!existing && connId) {
+            existing = await db.prepare("SELECT id FROM chats WHERE connection_id = ?").get(String(connId));
+            if (existing) {
+                this.id = existing.id;
+                this._id = existing.id;
+            }
+        }
         if (existing) {
             await db.prepare(`
                 UPDATE chats SET

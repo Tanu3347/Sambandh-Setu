@@ -34,7 +34,17 @@ class Profile {
         const db = getDb();
         this.updatedAt = new Date();
         const userId = typeof this.user === "object" && this.user ? (this.user.id || this.user._id) : this.user;
-        const existing = await db.prepare("SELECT id FROM profiles WHERE id = ?").get(this.id);
+        let existing = null;
+        if (this.id) {
+            existing = await db.prepare("SELECT id FROM profiles WHERE id = ?").get(this.id);
+        }
+        if (!existing && userId) {
+            existing = await db.prepare("SELECT id FROM profiles WHERE user_id = ?").get(String(userId));
+            if (existing) {
+                this.id = existing.id;
+                this._id = existing.id;
+            }
+        }
         if (existing) {
             await db.prepare(`
                 UPDATE profiles SET

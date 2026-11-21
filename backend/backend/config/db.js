@@ -1,6 +1,8 @@
 const path = require("path");
 const { initDb, closeDb, isReady, isPostgresUrl } = require("../db");
 
+let isSeeding = false;
+
 const connectDB = async () => {
     try {
         const neonUrl = process.env.DATABASE_URL || process.env.NEON_DATABASE_URL || process.env.POSTGRES_URL;
@@ -19,17 +21,22 @@ const connectDB = async () => {
         }
 
         // Auto-seed if database has no users (e.g. fresh ephemeral container on Render or new Neon DB)
-        if (process.env.NODE_ENV !== "test") {
-            const User = require("../models/User");
-            const count = await User.countDocuments();
-            if (count === 0) {
-                console.log("[DB] No users found in database, running initial seed...");
-                try {
+        // Guarded with isSeeding to prevent any recursive loop when seedUsers runs
+        if (process.env.NODE_ENV !== "test" && !isSeeding) {
+            isSeeding = true;
+            try {
+                const User = require("../models/User");
+                const count = await User.countDocuments();
+                if (count === 0) {
+                    console.log("[DB] No users found in database, running initial seed...");
                     const { seedUsers } = require("../seed/seedUsers");
                     await seedUsers();
-                } catch (seedErr) {
-                    console.warn("[DB] Initial auto-seed skipped or failed:", seedErr.message);
+                    console.log("[DB] Initial seed completed successfully.");
                 }
+            } catch (seedErr) {
+                console.warn("[DB] Initial auto-seed skipped or failed:", seedErr.message);
+            } finally {
+                isSeeding = false;
             }
         }
     } catch (error) {

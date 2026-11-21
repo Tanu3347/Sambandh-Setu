@@ -3,6 +3,7 @@ const cors = require("cors");
 const helmet = require("helmet");
 const dotenv = require("dotenv");
 const connectDB = require("./config/db");
+const { ensureAiService, stopAiService } = require("./services/aiServiceSupervisor");
 const { closeDb, isReady } = require("./db");
 const { corsOptions } = require("./config/cors");
 const authRoutes = require("./routes/authRoutes");
@@ -111,6 +112,7 @@ const startServer = async () => {
     }
 
     await connectDB();
+    await ensureAiService();
 
     let server;
     try {
@@ -144,6 +146,7 @@ if (require.main === module) {
                 }
                 shuttingDown = true;
                 console.log(`${signal} received; shutting down`);
+                stopAiService();
                 server.close(async (error) => {
                     if (error) {
                         console.error("HTTP server shutdown failed: name=%s", error.name || "Error");

@@ -23,7 +23,7 @@ type GMsg = {
 const clock = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 const greeting = (): GMsg => ({ id: 'm0', mine: false, kind: 'greeting', time: clock() });
 
-export default function GuideChatScreen({ navigation }: any) {
+export default function GuideChatScreen({ navigation, route }: any) {
   const [matchName, setMatchName] = useState('your match');
   const [connectionId, setConnectionId] = useState<string | undefined>(); // sent with every Guide request
   const [msgs, setMsgs] = useState<GMsg[]>([greeting()]);
@@ -34,14 +34,24 @@ export default function GuideChatScreen({ navigation }: any) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [copied, setCopied] = useState('');
   const [note, setNote] = useState('');
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<any>(null);
   const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const initialIntentRef = useRef(false);
 
   useEffect(() => {
     // the active connection gives us the match's name and the connectionId for the backend
     getActive()
       .then((a) => {
-        if (a[0]) { setMatchName(a[0].name); setConnectionId(a[0].id); }
+        const conn = a[0];
+        if (conn) {
+          setMatchName(conn.name);
+          setConnectionId(conn.id);
+          const initIntent = route?.params?.intent;
+          if (initIntent && !initialIntentRef.current) {
+            initialIntentRef.current = true;
+            send({ intent: initIntent }, conn.id);
+          }
+        }
       })
       .catch(() => {});
     return () => { if (noteTimer.current) clearTimeout(noteTimer.current); };
@@ -55,16 +65,33 @@ export default function GuideChatScreen({ navigation }: any) {
 
   const add = (m: GMsg) => setMsgs((prev) => [...prev, m]);
 
-  const send = async (p: { intent?: Intent; text?: string }) => {
+  const send = async (p: { intent?: Intent; text?: string }, overrideConnId?: string) => {
     if (typing) return;
     const shown = p.text ?? QUICK_ACTIONS.find((q) => q.intent === p.intent)?.label ?? '';
     add({ id: `u${Date.now()}`, mine: true, text: shown, time: clock() });
     setText(''); setTyping(true);
     // never throws: a fallback bubble comes back. connectionId lets the backend verify membership.
-    const r = await askGuide({ connectionId, intent: p.intent, message: p.text });
+    const activeConnId = overrideConnId || connectionId;
+    const r = await askGuide({ connectionId: activeConnId, intent: p.intent, message: p.text });
     setTyping(false);
-    // a fallback_used reply is shown as a normal bubble
-    add({ id: `b${Date.now()}`, mine: false, text: r.reply, time: clock(), questions: r.questions, topic: r.topic, chips: r.chips, safety: r.safety });
+    
+    // Safety handling: r.safety can be an object { status: 'pass', flags: [] } from live backend
+    const safetyNote = typeof r.safety === 'string'
+      ? r.safety
+      : (r.safety && typeof r.safety === 'object' && (r.safety as any).status && (r.safety as any).status !== 'pass'
+          ? `Safety status: ${(r.safety as any).status}`
+          : null);
+
+    add({
+      id: `b${Date.now()}`,
+      mine: false,
+      text: typeof r.reply === 'string' ? r.reply : String(r.reply || ''),
+      time: clock(),
+      questions: Array.isArray(r.questions) ? r.questions.filter((q) => typeof q === 'string') : [],
+      topic: typeof r.topic === 'string' ? r.topic : undefined,
+      chips: Array.isArray(r.chips) ? r.chips.filter((c) => typeof c === 'string') : [],
+      safety: safetyNote
+    });
   };
 
   const onChip = (label: string) => {
@@ -147,7 +174,7 @@ export default function GuideChatScreen({ navigation }: any) {
                       </View>
                     </View>
 
-                    {!!m.safety && (
+                    {typeof m.safety === 'string' && m.safety.length > 0 && (
                       <View style={styles.safety}>
                         <Ionicons name="shield-checkmark-outline" size={14} color={colors.primary} />
                         <Text style={styles.safetyText}>{m.safety}</Text>
@@ -176,17 +203,20 @@ export default function GuideChatScreen({ navigation }: any) {
                           <Ionicons name="book-outline" size={18} color={colors.primary} />
                           <Text style={styles.suggestTitle}>{m.topic ?? 'Suggested questions'}</Text>
                         </View>
-                        {visible.map((q) => (
-                          <View key={q} style={styles.q}>
-  <Pressable style={styles.qMain} onPress={() => setText(q)} accessibilityRole="button" accessibilityLabel={`Use question: ${q}`}>
-    <Ionicons name="ellipse" size={5} color={colors.primary} style={{ marginTop: 7 }} />
-    <Text style={styles.qText}>{q}</Text>
-  </Pressable>
-  <Pressable onPress={() => copy(q)} style={styles.copy} hitSlop={6} accessibilityRole="button" accessibilityLabel={`Copy: ${q}`}>
-    <Ionicons name={copied === q ? 'checkmark' : 'copy-outline'} size={17} color={copied === q ? colors.success : colors.muted} />
-  </Pressable>
-</View>
-                        ))}
+                        {visible.map((q, idx) => {
+                          const qStr = typeof q === 'string' ? q : String(q);
+                          return (
+                            <View key={`${idx}-${qStr.slice(0, 30)}`} style={styles.q}>
+                              <Pressable style={styles.qMain} onPress={() => setText(qStr)} accessibilityRole="button" accessibilityLabel={`Use question: ${qStr}`}>
+                                <Ionicons name="ellipse" size={5} color={colors.primary} style={{ marginTop: 7 }} />
+                                <Text style={styles.qText}>{qStr}</Text>
+                              </Pressable>
+                              <Pressable onPress={() => copy(qStr)} style={styles.copy} hitSlop={6} accessibilityRole="button" accessibilityLabel={`Copy: ${qStr}`}>
+                                <Ionicons name={copied === qStr ? 'checkmark' : 'copy-outline'} size={17} color={copied === qStr ? colors.success : colors.muted} />
+                              </Pressable>
+                            </View>
+                          );
+                        })}
                         {qs.length > VISIBLE_QUESTIONS && (
                           <Pressable onPress={() => setExpanded((e) => ({ ...e, [m.id]: !isOpen }))} style={styles.more} accessibilityRole="button">
                             <Text style={styles.moreText}>{isOpen ? 'Show fewer questions' : 'Show more questions'} {isOpen ? '↑' : '→'}</Text>
@@ -197,11 +227,14 @@ export default function GuideChatScreen({ navigation }: any) {
 
                     {!!m.chips?.length && (
                       <View style={styles.chips}>
-                        {m.chips.map((c) => (
-                          <Pressable key={c} style={styles.chip} disabled={typing} onPress={() => onChip(c)} accessibilityRole="button">
-                            <Text style={styles.chipText}>{c}</Text>
-                          </Pressable>
-                        ))}
+                        {m.chips.map((c, cIdx) => {
+                          const cStr = typeof c === 'string' ? c : String(c);
+                          return (
+                            <Pressable key={`${cIdx}-${cStr}`} style={styles.chip} disabled={typing} onPress={() => onChip(cStr)} accessibilityRole="button">
+                              <Text style={styles.chipText}>{cStr}</Text>
+                            </Pressable>
+                          );
+                        })}
                       </View>
                     )}
                   </View>
@@ -288,6 +321,7 @@ const styles = StyleSheet.create({
   suggestHead: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm },
   suggestTitle: { fontFamily: fonts.bold, fontSize: 14, color: colors.text, marginLeft: spacing.sm },
   q: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 8, gap: spacing.sm },
+  qMain: { flex: 1, flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
   qText: { flex: 1, fontFamily: fonts.regular, fontSize: 12.5, lineHeight: 18, color: colors.text },
   copy: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   more: { alignSelf: 'center', minHeight: 44, justifyContent: 'center', marginTop: 2 },

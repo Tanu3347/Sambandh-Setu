@@ -107,7 +107,8 @@ def _gemini_settings() -> Tuple[bool, Optional[str]]:
     try:
         from app.config import get_settings
         s = get_settings()
-        return (not s.use_mock) and bool(s.llm_api_key), s.llm_api_key
+        key = s.llm_api_key or os.environ.get("GEMINI_API_KEY")
+        return (not s.use_mock) and bool(key), key
     except Exception:
         return False, None
 
@@ -121,7 +122,8 @@ def _provider():
     if not use_gemini:
         return pipeline.get_provider(use_gemini=False)
     if _gemini is None:
-        os.environ.setdefault("GEMINI_API_KEY", key)    # intern 3's provider reads this name
+        if key:
+            os.environ.setdefault("GEMINI_API_KEY", key)    # intern 3's provider reads this name
         _gemini = pipeline.get_provider(use_gemini=True)
     return _gemini
 

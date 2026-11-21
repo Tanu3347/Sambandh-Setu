@@ -87,70 +87,76 @@ class MockLLMProvider(LLMProvider):
 
 
 class GeminiLLMProvider(LLMProvider):
-    MODEL = "gemini-3.8-flash"
+    MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 
-    def __init__(self):
-        api_key = os.environ.get("GEMINI_API_KEY")
+    def __init__(self, api_key=None):
+        api_key = api_key or os.environ.get("GEMINI_API_KEY") or os.environ.get("LLM_API_KEY")
 
         if not api_key:
             raise ValueError(
-                "GEMINI_API_KEY environment variable is not set."
+                "GEMINI_API_KEY or LLM_API_KEY environment variable is not set."
             )
 
         self.client = genai.Client(
             api_key=api_key,
-            http_options={"timeout": 10000},
+            http_options={"timeout": 30000},
         )
 
     def generate(self, prompt):
         start = time.perf_counter()
+        output_text = None
 
         try:
-            interaction = self.client.interactions.create(
-                model=self.MODEL,
-                input=prompt,
-            )
-
-            output_text = interaction.output_text.strip()
-
-            usage = getattr(interaction, "usage", None)
-
-            if usage is None:
-                logger.info(
-                    "provider=gemini usage_available=false"
-                )
-            else:
-                input_tokens = (
-                    getattr(usage, "total_input_tokens", 0) or 0
-                )
-                output_tokens = (
-                    getattr(usage, "total_output_tokens", 0) or 0
-                )
-                total_tokens = (
-                    getattr(
-                        usage,
-                        "total_tokens",
-                        input_tokens + output_tokens,
+            # 1. Check for interactions API (used in mock unit tests or DeepMind agent interactions)
+            if hasattr(self.client, "interactions") and hasattr(self.client.interactions, "create"):
+                try:
+                    interaction = self.client.interactions.create(
+                        model=self.MODEL,
+                        input=prompt,
                     )
-                    or 0
-                )
+                    output_text = getattr(interaction, "output_text", None)
+                    usage = getattr(interaction, "usage", None)
 
-                # Approximate estimate only; verify current model pricing.
-                estimated_cost = (
-                    input_tokens * 0.30
-                    + output_tokens * 2.50
-                ) / 1_000_000
+                    if usage is None:
+                        logger.info("provider=gemini usage_available=false")
+                    else:
+                        input_tokens = getattr(usage, "total_input_tokens", 0) or 0
+                        output_tokens = getattr(usage, "total_output_tokens", 0) or 0
+                        total_tokens = getattr(usage, "total_tokens", input_tokens + output_tokens) or 0
+                        estimated_cost = (input_tokens * 0.30 + output_tokens * 2.50) / 1_000_000
+                        logger.info(
+                            "provider=gemini input_tokens=%s output_tokens=%s total_tokens=%s estimated_cost_usd=%.10f latency_ms=%.2f",
+                            input_tokens, output_tokens, total_tokens, estimated_cost, (time.perf_counter() - start) * 1000
+                        )
+                except Exception as int_err:
+                    logger.debug("interactions.create fell through: %s", int_err)
+                    output_text = None
 
-                logger.info(
-                    "provider=gemini input_tokens=%s "
-                    "output_tokens=%s total_tokens=%s "
-                    "estimated_cost_usd=%.10f latency_ms=%.2f",
-                    input_tokens,
-                    output_tokens,
-                    total_tokens,
-                    estimated_cost,
-                    (time.perf_counter() - start) * 1000,
+            # 2. Support standard Google AI Studio models.generate_content API
+            if output_text is None and hasattr(self.client, "models") and hasattr(self.client.models, "generate_content"):
+                from google.genai import types
+                response = self.client.models.generate_content(
+                    model=self.MODEL,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(response_mime_type="application/json")
                 )
+                output_text = getattr(response, "text", "")
+                usage = getattr(response, "usage_metadata", None)
+
+                if usage is None:
+                    logger.info("provider=gemini usage_available=false")
+                else:
+                    input_tokens = getattr(usage, "prompt_token_count", 0) or 0
+                    output_tokens = getattr(usage, "candidates_token_count", 0) or 0
+                    total_tokens = getattr(usage, "total_token_count", input_tokens + output_tokens) or 0
+                    estimated_cost = (input_tokens * 0.30 + output_tokens * 2.50) / 1_000_000
+                    logger.info(
+                        "provider=gemini input_tokens=%s output_tokens=%s total_tokens=%s estimated_cost_usd=%.10f latency_ms=%.2f",
+                        input_tokens, output_tokens, total_tokens, estimated_cost, (time.perf_counter() - start) * 1000
+                    )
+
+            if not output_text:
+                return None
 
             output_text = (
                 output_text.removeprefix("```json")

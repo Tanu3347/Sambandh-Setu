@@ -22,6 +22,7 @@
     "test:b3": "node --test ./test/b3.test.js",
     "test:b3:integration": "node --test ./test/b3.integration.test.js",
     "test:otp": "node --test ./test/otp.integration.test.js",
+    "test:guide": "node --test ./test/guide.test.js ./test/guide.integration.test.js",
     "test:e2e": "node --test ./test/e2e-profile-persistence.test.js",
     "dev:local": "node dev-start.js"
   },

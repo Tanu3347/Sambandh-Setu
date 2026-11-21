@@ -1,4 +1,4 @@
-﻿
+
 import os
 import sys
 from pathlib import Path
@@ -76,7 +76,7 @@ def get_provider(use_gemini=False):
     if settings.use_mock:
         return MockLLMProvider()
 
-    if use_gemini or settings.llm_provider == "gemini":
+    if use_gemini or settings.llm_provider in ("gemini", "placeholder"):
         return GeminiLLMProvider()
 
     if settings.llm_provider == "openai":

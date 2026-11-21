@@ -6,7 +6,7 @@ import { delay } from './mockData';
 export type Intent = 'conversation_ideas' | 'help_me_understand' | 'next_steps' | 'privacy_safety';
 export type GuideReply = {
   intent?: Intent; reply: string; questions?: string[]; topic?: string; chips?: string[];
-  sources?: string[]; safety?: string | null; fallback_used?: boolean;
+  sources?: string[]; safety?: string | { status?: string; flags?: string[] } | null; fallback_used?: boolean;
 };
 
 export const QUICK_ACTIONS: { intent: Intent; label: string }[] = [

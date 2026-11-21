@@ -1,11 +1,47 @@
 const path = require("path");
 const crypto = require("crypto");
+const http = require("http");
+const { spawn } = require("child_process");
 const dotenv = require("dotenv");
 
 dotenv.config({ path: path.join(__dirname, ".env") });
 
 const { closeDb } = require("./db");
 const { seedUsers, fictionalUsers } = require("./seed/seedUsers");
+
+function isAiRunning() {
+    return new Promise((resolve) => {
+        const req = http.get("http://127.0.0.1:8000/health", (res) => {
+            resolve(res.statusCode === 200);
+        });
+        req.on("error", () => resolve(false));
+        req.setTimeout(1000, () => {
+            req.destroy();
+            resolve(false);
+        });
+    });
+}
+
+function spawnAiProcess() {
+    const aiDir = path.resolve(__dirname, "../../setu_ai");
+    console.log(`[AI Service] Spawning Setu AI FastAPI server from ${aiDir}...`);
+    const aiProcess = spawn("python", ["-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000"], {
+        cwd: aiDir,
+        shell: true,
+        stdio: ["ignore", "pipe", "pipe"]
+    });
+
+    aiProcess.stdout.on("data", (d) => {
+        const line = d.toString().trim();
+        if (line) console.log(`[Setu AI] ${line}`);
+    });
+    aiProcess.stderr.on("data", (d) => {
+        const line = d.toString().trim();
+        if (line) console.log(`[Setu AI] ${line}`);
+    });
+
+    return aiProcess;
+}
 
 async function devStart() {
     console.log("-----------------------------------------");
@@ -14,6 +50,22 @@ async function devStart() {
 
     process.env.SQLITE_DB_PATH = process.env.SQLITE_DB_PATH || path.join(__dirname, "sambandh_setu.db");
     console.log(`[Database] SQLite instance ready at ${process.env.SQLITE_DB_PATH}`);
+
+    // Check / Start Setu AI service
+    let aiProcess = null;
+    const aiRunning = await isAiRunning();
+    if (aiRunning) {
+        console.log("[AI Service] Setu AI is already running on http://localhost:8000");
+    } else {
+        aiProcess = spawnAiProcess();
+        for (let i = 0; i < 6; i++) {
+            await new Promise((r) => setTimeout(r, 500));
+            if (await isAiRunning()) {
+                console.log("[AI Service] Setu AI is ready on http://localhost:8000");
+                break;
+            }
+        }
+    }
 
     // Start Express Server
     const { startServer } = require("./server");
@@ -130,6 +182,12 @@ async function devStart() {
 
     const shutdown = async (signal) => {
         console.log(`Received ${signal}, shutting down gracefully...`);
+        if (aiProcess) {
+            try {
+                aiProcess.kill();
+                console.log("[AI Service] Stopped Setu AI server.");
+            } catch {}
+        }
         server.close(async () => {
             try {
                 closeDb();

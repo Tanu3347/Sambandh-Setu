@@ -50,8 +50,10 @@ class Settings(BaseSettings):
 
     # --- LLM / orchestrator -------------------------------------------------
     # Secret. Required only when USE_MOCK=false; repr=False keeps it out of logs.
+    gemini_api_key: str | None = Field(default=None, repr=False)
+    gemini_model: str = "gemini-2.5-flash"
     llm_api_key: str | None = Field(default=None, repr=False)
-    llm_provider: str = "placeholder"
+    llm_provider: str = "gemini"
     llm_timeout_seconds: float = Field(default=10.0, gt=0)
     use_mock: bool = True
 
@@ -87,6 +89,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _require_api_key_for_real_mode(self):
+        if not self.llm_api_key and self.gemini_api_key:
+            self.llm_api_key = self.gemini_api_key
         if not self.use_mock and not self.llm_api_key:
             raise ValueError(
                 "LLM_API_KEY is required when USE_MOCK=false. "

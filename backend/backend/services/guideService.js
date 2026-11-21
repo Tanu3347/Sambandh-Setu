@@ -42,14 +42,32 @@ const chat = async (payload = {}) => {
         const startTime = Date.now();
 
         try {
-            const response = await fetch(url, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(payload),
-                signal: AbortSignal.timeout(10000)
-            });
+            let fetchUrl = url;
+            let response;
+            try {
+                response = await fetch(fetchUrl, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(payload),
+                    signal: AbortSignal.timeout(30000)
+                });
+            } catch (initialErr) {
+                if (fetchUrl.includes("localhost")) {
+                    fetchUrl = fetchUrl.replace("localhost", "127.0.0.1");
+                    response = await fetch(fetchUrl, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify(payload),
+                        signal: AbortSignal.timeout(30000)
+                    });
+                } else {
+                    throw initialErr;
+                }
+            }
 
             if (response.status === 429 && attempt === 0) {
                 const retryDelay = getRetryDelay(

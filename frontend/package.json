@@ -30,6 +30,7 @@
   },
   "scripts": {
     "build": "expo export -p web",
+    "build:apk": "eas build -p android --profile preview",
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",

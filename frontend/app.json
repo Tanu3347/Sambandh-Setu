@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "setu-app",
-    "slug": "setu-app",
+    "name": "Sambandh Setu",
+    "slug": "sambandh-setu",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -10,6 +10,7 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.sambandhsetu.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",

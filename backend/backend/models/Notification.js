@@ -24,9 +24,9 @@ class Notification {
         const reqId = typeof this.request === "object" && this.request ? (this.request.id || this.request._id) : this.request;
         const connId = typeof this.connection === "object" && this.connection ? (this.connection.id || this.connection._id) : this.connection;
 
-        const existing = db.prepare("SELECT id FROM notifications WHERE id = ?").get(this.id);
+        const existing = await db.prepare("SELECT id FROM notifications WHERE id = ?").get(this.id);
         if (existing) {
-            db.prepare(`
+            await db.prepare(`
                 UPDATE notifications SET
                     recipient_id = ?, actor_id = ?, type = ?, request_id = ?,
                     connection_id = ?, read_at = ?, updated_at = ?
@@ -42,7 +42,7 @@ class Notification {
                 this.id
             );
         } else {
-            db.prepare(`
+            await db.prepare(`
                 INSERT INTO notifications (
                     id, recipient_id, actor_id, type, request_id,
                     connection_id, read_at, created_at, updated_at
@@ -137,7 +137,7 @@ class Notification {
                 querySql += ` ORDER BY created_at DESC`;
             }
             if (limit) querySql += ` LIMIT ${Number(limit)}`;
-            const rows = db.prepare(querySql).all(...params);
+            const rows = await db.prepare(querySql).all(...params);
             const notifs = rows.map(r => Notification._fromRow(r));
             for (const n of notifs) {
                 await Notification._populate(n, populate);
@@ -150,7 +150,7 @@ class Notification {
         return new QueryBuilder(async ({ populate }) => {
             const db = getDb();
             const { sql, params } = Notification._buildWhere(query);
-            const row = db.prepare(`SELECT * FROM notifications ${sql} LIMIT 1`).get(...params);
+            const row = await db.prepare(`SELECT * FROM notifications ${sql} LIMIT 1`).get(...params);
             const notif = Notification._fromRow(row);
             return Notification._populate(notif, populate);
         });
@@ -160,7 +160,7 @@ class Notification {
         return new QueryBuilder(async ({ populate }) => {
             if (!id) return null;
             const db = getDb();
-            const row = db.prepare("SELECT * FROM notifications WHERE id = ?").get(String(id));
+            const row = await db.prepare("SELECT * FROM notifications WHERE id = ?").get(String(id));
             const notif = Notification._fromRow(row);
             return Notification._populate(notif, populate);
         });
@@ -181,7 +181,7 @@ class Notification {
     static async updateMany(query = {}, update = {}) {
         const db = getDb();
         const { sql, params } = Notification._buildWhere(query);
-        const rows = db.prepare(`SELECT * FROM notifications ${sql}`).all(...params);
+        const rows = await db.prepare(`SELECT * FROM notifications ${sql}`).all(...params);
         let count = 0;
         const setFields = update.$set ? { ...update.$set } : { ...update };
         for (const row of rows) {
@@ -203,26 +203,26 @@ class Notification {
         const db = getDb();
         const notif = await Notification.findOne(query);
         if (!notif) return { deletedCount: 0 };
-        const result = db.prepare("DELETE FROM notifications WHERE id = ?").run(notif.id);
+        const result = await db.prepare("DELETE FROM notifications WHERE id = ?").run(notif.id);
         return { deletedCount: result.changes };
     }
 
     static async deleteMany(query = {}) {
         const db = getDb();
         if (!query || Object.keys(query).length === 0) {
-            const result = db.prepare("DELETE FROM notifications").run();
+            const result = await db.prepare("DELETE FROM notifications").run();
             return { deletedCount: result.changes };
         }
         const { sql, params } = Notification._buildWhere(query);
-        const result = db.prepare(`DELETE FROM notifications ${sql}`).run(...params);
+        const result = await db.prepare(`DELETE FROM notifications ${sql}`).run(...params);
         return { deletedCount: result.changes };
     }
 
     static async countDocuments(query = {}) {
         const db = getDb();
         const { sql, params } = Notification._buildWhere(query);
-        const row = db.prepare(`SELECT COUNT(*) as count FROM notifications ${sql}`).get(...params);
-        return row ? row.count : 0;
+        const row = await db.prepare(`SELECT COUNT(*) as count FROM notifications ${sql}`).get(...params);
+        return row ? Number(row.count) : 0;
     }
 
     static async exists(query = {}) {

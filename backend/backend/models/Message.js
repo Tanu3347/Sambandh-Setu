@@ -19,9 +19,9 @@ class Message {
         this.updatedAt = new Date();
         const chatId = typeof this.chat === "object" && this.chat ? (this.chat.id || this.chat._id) : this.chat;
         const senderId = typeof this.sender === "object" && this.sender ? (this.sender.id || this.sender._id) : this.sender;
-        const existing = db.prepare("SELECT id FROM messages WHERE id = ?").get(this.id);
+        const existing = await db.prepare("SELECT id FROM messages WHERE id = ?").get(this.id);
         if (existing) {
-            db.prepare(`
+            await db.prepare(`
                 UPDATE messages SET
                     chat_id = ?, sender_id = ?, text = ?, read_by = ?, updated_at = ?
                 WHERE id = ?
@@ -34,7 +34,7 @@ class Message {
                 this.id
             );
         } else {
-            db.prepare(`
+            await db.prepare(`
                 INSERT INTO messages (
                     id, chat_id, sender_id, text, read_by, created_at, updated_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -119,7 +119,7 @@ class Message {
                 querySql += ` ORDER BY created_at ASC`;
             }
             if (limit) querySql += ` LIMIT ${Number(limit)}`;
-            const rows = db.prepare(querySql).all(...params);
+            const rows = await db.prepare(querySql).all(...params);
             const msgs = rows.map(r => Message._fromRow(r));
             for (const m of msgs) {
                 await Message._populate(m, populate);
@@ -132,7 +132,7 @@ class Message {
         return new QueryBuilder(async ({ populate }) => {
             const db = getDb();
             const { sql, params } = Message._buildWhere(query);
-            const row = db.prepare(`SELECT * FROM messages ${sql} LIMIT 1`).get(...params);
+            const row = await db.prepare(`SELECT * FROM messages ${sql} LIMIT 1`).get(...params);
             const msg = Message._fromRow(row);
             return Message._populate(msg, populate);
         });
@@ -142,7 +142,7 @@ class Message {
         return new QueryBuilder(async ({ populate }) => {
             if (!id) return null;
             const db = getDb();
-            const row = db.prepare("SELECT * FROM messages WHERE id = ?").get(String(id));
+            const row = await db.prepare("SELECT * FROM messages WHERE id = ?").get(String(id));
             const msg = Message._fromRow(row);
             return Message._populate(msg, populate);
         });
@@ -159,7 +159,7 @@ class Message {
         const chatId = query.chat ? (query.chat.id || query.chat._id || String(query.chat)) : null;
         if (!chatId) return { modifiedCount: 0 };
 
-        const rows = db.prepare("SELECT * FROM messages WHERE chat_id = ?").all(chatId);
+        const rows = await db.prepare("SELECT * FROM messages WHERE chat_id = ?").all(chatId);
         let modified = 0;
         for (const row of rows) {
             const msg = Message._fromRow(row);
@@ -200,7 +200,7 @@ class Message {
                 params.push(excludeSender);
             }
 
-            const rows = db.prepare(sql).all(...params);
+            const rows = await db.prepare(sql).all(...params);
             const counts = {};
             for (const row of rows) {
                 const readBy = safeJsonParse(row.read_by, []);
@@ -221,26 +221,26 @@ class Message {
         const db = getDb();
         const msg = await Message.findOne(query);
         if (!msg) return { deletedCount: 0 };
-        const result = db.prepare("DELETE FROM messages WHERE id = ?").run(msg.id);
+        const result = await db.prepare("DELETE FROM messages WHERE id = ?").run(msg.id);
         return { deletedCount: result.changes };
     }
 
     static async deleteMany(query = {}) {
         const db = getDb();
         if (!query || Object.keys(query).length === 0) {
-            const result = db.prepare("DELETE FROM messages").run();
+            const result = await db.prepare("DELETE FROM messages").run();
             return { deletedCount: result.changes };
         }
         const { sql, params } = Message._buildWhere(query);
-        const result = db.prepare(`DELETE FROM messages ${sql}`).run(...params);
+        const result = await db.prepare(`DELETE FROM messages ${sql}`).run(...params);
         return { deletedCount: result.changes };
     }
 
     static async countDocuments(query = {}) {
         const db = getDb();
         const { sql, params } = Message._buildWhere(query);
-        const row = db.prepare(`SELECT COUNT(*) as count FROM messages ${sql}`).get(...params);
-        return row ? row.count : 0;
+        const row = await db.prepare(`SELECT COUNT(*) as count FROM messages ${sql}`).get(...params);
+        return row ? Number(row.count) : 0;
     }
 
     static async exists(query = {}) {

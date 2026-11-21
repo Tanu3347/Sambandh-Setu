@@ -33,9 +33,9 @@ class User {
     async save() {
         const db = getDb();
         this.updatedAt = new Date();
-        const existing = db.prepare("SELECT id FROM users WHERE id = ?").get(this.id);
+        const existing = await db.prepare("SELECT id FROM users WHERE id = ?").get(this.id);
         if (existing) {
-            db.prepare(`
+            await db.prepare(`
                 UPDATE users SET
                     username = ?, email = ?, display_name = ?, first_name = ?, last_name = ?,
                     password_hash = ?, is_seeded = ?, onboarding_completed = ?,
@@ -56,7 +56,7 @@ class User {
                 this.id
             );
         } else {
-            db.prepare(`
+            await db.prepare(`
                 INSERT INTO users (
                     id, username, email, display_name, first_name, last_name,
                     password_hash, is_seeded, onboarding_completed,
@@ -145,7 +145,7 @@ class User {
         return new QueryBuilder(async ({ select }) => {
             const db = getDb();
             const { sql, params } = User._buildWhere(query);
-            const row = db.prepare(`SELECT * FROM users ${sql} LIMIT 1`).get(...params);
+            const row = await db.prepare(`SELECT * FROM users ${sql} LIMIT 1`).get(...params);
             return User._fromRow(row);
         });
     }
@@ -154,7 +154,7 @@ class User {
         return new QueryBuilder(async ({ select }) => {
             if (!id) return null;
             const db = getDb();
-            const row = db.prepare("SELECT * FROM users WHERE id = ?").get(String(id));
+            const row = await db.prepare("SELECT * FROM users WHERE id = ?").get(String(id));
             return User._fromRow(row);
         });
     }
@@ -169,7 +169,7 @@ class User {
                 if (sortClauses.length) querySql += ` ORDER BY ${sortClauses.join(", ")}`;
             }
             if (limit) querySql += ` LIMIT ${Number(limit)}`;
-            const rows = db.prepare(querySql).all(...params);
+            const rows = await db.prepare(querySql).all(...params);
             return rows.map(r => User._fromRow(r));
         });
     }
@@ -214,26 +214,26 @@ class User {
         const db = getDb();
         const user = await User.findOne(query);
         if (!user) return { deletedCount: 0 };
-        const result = db.prepare("DELETE FROM users WHERE id = ?").run(user.id);
+        const result = await db.prepare("DELETE FROM users WHERE id = ?").run(user.id);
         return { deletedCount: result.changes };
     }
 
     static async deleteMany(query = {}) {
         const db = getDb();
         if (!query || Object.keys(query).length === 0) {
-            const result = db.prepare("DELETE FROM users").run();
+            const result = await db.prepare("DELETE FROM users").run();
             return { deletedCount: result.changes };
         }
         const { sql, params } = User._buildWhere(query);
-        const result = db.prepare(`DELETE FROM users ${sql}`).run(...params);
+        const result = await db.prepare(`DELETE FROM users ${sql}`).run(...params);
         return { deletedCount: result.changes };
     }
 
     static async countDocuments(query = {}) {
         const db = getDb();
         const { sql, params } = User._buildWhere(query);
-        const row = db.prepare(`SELECT COUNT(*) as count FROM users ${sql}`).get(...params);
-        return row ? row.count : 0;
+        const row = await db.prepare(`SELECT COUNT(*) as count FROM users ${sql}`).get(...params);
+        return row ? Number(row.count) : 0;
     }
 
     static async exists(query = {}) {

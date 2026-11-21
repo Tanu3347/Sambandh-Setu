@@ -2,11 +2,89 @@ const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
 const { DatabaseSync } = require("node:sqlite");
+const { Pool, types } = require("pg");
+
+// Parse Postgres BIGINT (type 20) as regular JavaScript numbers (for COUNT(*) etc.)
+types.setTypeParser(20, (val) => (val === null ? null : parseInt(val, 10)));
 
 let dbInstance = null;
-let currentDbPath = null;
+let currentDbTarget = null;
+let pgPoolInstance = null;
 
 const generateId = () => crypto.randomBytes(12).toString("hex");
+
+const isPostgresUrl = (url) => {
+    if (!url || typeof url !== "string") return false;
+    return url.startsWith("postgres://") || url.startsWith("postgresql://");
+};
+
+function toPgSql(sql) {
+    let idx = 1;
+    let pgSql = sql.replace(/\?/g, () => `$${idx++}`);
+    // Convert SQLite COLLATE NOCASE to Postgres ILIKE
+    pgSql = pgSql.replace(/LIKE\s+(\$\d+)\s+COLLATE\s+NOCASE/gi, (_, p1) => `ILIKE ${p1}`);
+    return pgSql;
+}
+
+function createPgAdapter(pool) {
+    return {
+        type: "postgres",
+        isPostgres: true,
+        prepare(sql) {
+            const pgSql = toPgSql(sql);
+            return {
+                async get(...params) {
+                    const safeParams = params.map(p => (p === undefined ? null : p));
+                    const res = await pool.query(pgSql, safeParams);
+                    return res.rows[0] || null;
+                },
+                async all(...params) {
+                    const safeParams = params.map(p => (p === undefined ? null : p));
+                    const res = await pool.query(pgSql, safeParams);
+                    return res.rows;
+                },
+                async run(...params) {
+                    const safeParams = params.map(p => (p === undefined ? null : p));
+                    const res = await pool.query(pgSql, safeParams);
+                    return { changes: res.rowCount };
+                }
+            };
+        },
+        async exec(sql) {
+            return pool.query(sql);
+        },
+        async close() {
+            return pool.end();
+        }
+    };
+}
+
+function createSqliteAdapter(sqliteDb) {
+    return {
+        type: "sqlite",
+        isPostgres: false,
+        prepare(sql) {
+            const stmt = sqliteDb.prepare(sql);
+            return {
+                get(...params) {
+                    return stmt.get(...params);
+                },
+                all(...params) {
+                    return stmt.all(...params);
+                },
+                run(...params) {
+                    return stmt.run(...params);
+                }
+            };
+        },
+        exec(sql) {
+            return sqliteDb.exec(sql);
+        },
+        close() {
+            return sqliteDb.close();
+        }
+    };
+}
 
 const SCHEMA_DDL = `
 CREATE TABLE IF NOT EXISTS users (
@@ -182,33 +260,69 @@ CREATE TABLE IF NOT EXISTS stage_contents (
 );
 `;
 
-const initDb = (dbPath) => {
-    if (dbInstance && currentDbPath === dbPath) {
+const initDb = (target) => {
+    const resolvedTarget =
+        target ||
+        process.env.DATABASE_URL ||
+        process.env.NEON_DATABASE_URL ||
+        process.env.POSTGRES_URL ||
+        process.env.SQLITE_DB_PATH ||
+        path.join(__dirname, "..", "sambandh_setu.db");
+
+    if (dbInstance && currentDbTarget === resolvedTarget) {
         return dbInstance;
     }
+
     if (dbInstance) {
         try { dbInstance.close(); } catch {}
         dbInstance = null;
     }
 
-    const resolvedPath = dbPath || process.env.SQLITE_DB_PATH || path.join(__dirname, "..", "sambandh_setu.db");
-    currentDbPath = resolvedPath;
+    currentDbTarget = resolvedTarget;
 
-    if (resolvedPath !== ":memory:") {
-        const dir = path.dirname(resolvedPath);
+    if (isPostgresUrl(resolvedTarget)) {
+        pgPoolInstance = new Pool({
+            connectionString: resolvedTarget,
+            ssl: { rejectUnauthorized: false },
+            max: 10,
+            idleTimeoutMillis: 30000,
+            connectionTimeoutMillis: 10000
+        });
+
+        pgPoolInstance.on("error", (err) => {
+            console.error("[Neon DB] Idle client error:", err.message);
+        });
+
+        const adapter = createPgAdapter(pgPoolInstance);
+        dbInstance = adapter;
+
+        // Auto-run schema DDL asynchronously for Postgres
+        adapter.initPromise = pgPoolInstance.query(SCHEMA_DDL).catch((err) => {
+            console.error("[Neon DB] Failed to initialize schema:", err.message);
+        });
+
+        return dbInstance;
+    }
+
+    // SQLite
+    if (resolvedTarget !== ":memory:") {
+        const dir = path.dirname(resolvedTarget);
         if (!fs.existsSync(dir)) {
             fs.mkdirSync(dir, { recursive: true });
         }
     }
 
-    dbInstance = new DatabaseSync(resolvedPath);
-    dbInstance.exec("PRAGMA foreign_keys = ON;");
-    if (resolvedPath !== ":memory:") {
+    const sqlite = new DatabaseSync(resolvedTarget);
+    sqlite.exec("PRAGMA foreign_keys = ON;");
+    if (resolvedTarget !== ":memory:") {
         try {
-            dbInstance.exec("PRAGMA journal_mode = WAL;");
+            sqlite.exec("PRAGMA journal_mode = WAL;");
         } catch {}
     }
-    dbInstance.exec(SCHEMA_DDL);
+    sqlite.exec(SCHEMA_DDL);
+
+    const adapter = createSqliteAdapter(sqlite);
+    dbInstance = adapter;
     return dbInstance;
 };
 
@@ -219,17 +333,20 @@ const getDb = () => {
     return dbInstance;
 };
 
-const closeDb = () => {
+const closeDb = async () => {
     if (dbInstance) {
-        try { dbInstance.close(); } catch {}
+        try {
+            await dbInstance.close();
+        } catch {}
         dbInstance = null;
-        currentDbPath = null;
+        currentDbTarget = null;
+        pgPoolInstance = null;
     }
 };
 
 const isReady = () => dbInstance !== null;
 
-const resetDb = () => {
+const resetDb = async () => {
     const db = getDb();
     const tables = [
         "reflection_answers",
@@ -244,12 +361,20 @@ const resetDb = () => {
         "profiles",
         "users"
     ];
-    db.exec("PRAGMA foreign_keys = OFF;");
-    for (const table of tables) {
-        db.exec(`DROP TABLE IF EXISTS ${table};`);
+
+    if (db.isPostgres) {
+        for (const table of tables) {
+            await db.exec(`DROP TABLE IF EXISTS ${table} CASCADE;`);
+        }
+        await db.exec(SCHEMA_DDL);
+    } else {
+        db.exec("PRAGMA foreign_keys = OFF;");
+        for (const table of tables) {
+            db.exec(`DROP TABLE IF EXISTS ${table};`);
+        }
+        db.exec("PRAGMA foreign_keys = ON;");
+        db.exec(SCHEMA_DDL);
     }
-    db.exec("PRAGMA foreign_keys = ON;");
-    db.exec(SCHEMA_DDL);
 };
 
 module.exports = {
@@ -258,5 +383,6 @@ module.exports = {
     closeDb,
     isReady,
     resetDb,
-    generateId
+    generateId,
+    isPostgresUrl
 };

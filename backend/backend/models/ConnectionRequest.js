@@ -19,9 +19,9 @@ class ConnectionRequest {
         this.updatedAt = new Date();
         const sId = typeof this.sender === "object" && this.sender ? (this.sender.id || this.sender._id) : this.sender;
         const rId = typeof this.recipient === "object" && this.recipient ? (this.recipient.id || this.recipient._id) : this.recipient;
-        const existing = db.prepare("SELECT id FROM connection_requests WHERE id = ?").get(this.id);
+        const existing = await db.prepare("SELECT id FROM connection_requests WHERE id = ?").get(this.id);
         if (existing) {
-            db.prepare(`
+            await db.prepare(`
                 UPDATE connection_requests SET
                     sender_id = ?, recipient_id = ?, pair_key = ?, status = ?, updated_at = ?
                 WHERE id = ?
@@ -34,7 +34,7 @@ class ConnectionRequest {
                 this.id
             );
         } else {
-            db.prepare(`
+            await db.prepare(`
                 INSERT INTO connection_requests (
                     id, sender_id, recipient_id, pair_key, status, created_at, updated_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -112,7 +112,7 @@ class ConnectionRequest {
         return new QueryBuilder(async ({ populate }) => {
             const db = getDb();
             const { sql, params } = ConnectionRequest._buildWhere(query);
-            const row = db.prepare(`SELECT * FROM connection_requests ${sql} LIMIT 1`).get(...params);
+            const row = await db.prepare(`SELECT * FROM connection_requests ${sql} LIMIT 1`).get(...params);
             const reqDoc = ConnectionRequest._fromRow(row);
             return ConnectionRequest._populate(reqDoc, populate);
         });
@@ -122,7 +122,7 @@ class ConnectionRequest {
         return new QueryBuilder(async ({ populate }) => {
             if (!id) return null;
             const db = getDb();
-            const row = db.prepare("SELECT * FROM connection_requests WHERE id = ?").get(String(id));
+            const row = await db.prepare("SELECT * FROM connection_requests WHERE id = ?").get(String(id));
             const reqDoc = ConnectionRequest._fromRow(row);
             return ConnectionRequest._populate(reqDoc, populate);
         });
@@ -138,7 +138,7 @@ class ConnectionRequest {
                 if (sortClauses.length) querySql += ` ORDER BY ${sortClauses.join(", ")}`;
             }
             if (limit) querySql += ` LIMIT ${Number(limit)}`;
-            const rows = db.prepare(querySql).all(...params);
+            const rows = await db.prepare(querySql).all(...params);
             const reqDocs = rows.map(r => ConnectionRequest._fromRow(r));
             for (const doc of reqDocs) {
                 await ConnectionRequest._populate(doc, populate);
@@ -173,26 +173,26 @@ class ConnectionRequest {
         const db = getDb();
         const reqDoc = await ConnectionRequest.findOne(query);
         if (!reqDoc) return { deletedCount: 0 };
-        const result = db.prepare("DELETE FROM connection_requests WHERE id = ?").run(reqDoc.id);
+        const result = await db.prepare("DELETE FROM connection_requests WHERE id = ?").run(reqDoc.id);
         return { deletedCount: result.changes };
     }
 
     static async deleteMany(query = {}) {
         const db = getDb();
         if (!query || Object.keys(query).length === 0) {
-            const result = db.prepare("DELETE FROM connection_requests").run();
+            const result = await db.prepare("DELETE FROM connection_requests").run();
             return { deletedCount: result.changes };
         }
         const { sql, params } = ConnectionRequest._buildWhere(query);
-        const result = db.prepare(`DELETE FROM connection_requests ${sql}`).run(...params);
+        const result = await db.prepare(`DELETE FROM connection_requests ${sql}`).run(...params);
         return { deletedCount: result.changes };
     }
 
     static async countDocuments(query = {}) {
         const db = getDb();
         const { sql, params } = ConnectionRequest._buildWhere(query);
-        const row = db.prepare(`SELECT COUNT(*) as count FROM connection_requests ${sql}`).get(...params);
-        return row ? row.count : 0;
+        const row = await db.prepare(`SELECT COUNT(*) as count FROM connection_requests ${sql}`).get(...params);
+        return row ? Number(row.count) : 0;
     }
 
     static async exists(query = {}) {

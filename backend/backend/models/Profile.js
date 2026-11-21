@@ -34,9 +34,9 @@ class Profile {
         const db = getDb();
         this.updatedAt = new Date();
         const userId = typeof this.user === "object" && this.user ? (this.user.id || this.user._id) : this.user;
-        const existing = db.prepare("SELECT id FROM profiles WHERE id = ?").get(this.id);
+        const existing = await db.prepare("SELECT id FROM profiles WHERE id = ?").get(this.id);
         if (existing) {
-            db.prepare(`
+            await db.prepare(`
                 UPDATE profiles SET
                     user_id = ?, age = ?, gender = ?, height_cm = ?, avatar_url = ?,
                     profile_status = ?, bio = ?, education = ?, profession = ?, location = ?,
@@ -64,7 +64,7 @@ class Profile {
                 this.id
             );
         } else {
-            db.prepare(`
+            await db.prepare(`
                 INSERT INTO profiles (
                     id, user_id, age, gender, height_cm, avatar_url,
                     profile_status, bio, education, profession, location,
@@ -172,7 +172,7 @@ class Profile {
         return new QueryBuilder(async ({ populate }) => {
             const db = getDb();
             const { sql, params } = Profile._buildWhere(query);
-            const row = db.prepare(`SELECT * FROM profiles ${sql} LIMIT 1`).get(...params);
+            const row = await db.prepare(`SELECT * FROM profiles ${sql} LIMIT 1`).get(...params);
             const profile = Profile._fromRow(row);
             return Profile._populateUser(profile, populate);
         });
@@ -182,7 +182,7 @@ class Profile {
         return new QueryBuilder(async ({ populate }) => {
             if (!id) return null;
             const db = getDb();
-            const row = db.prepare("SELECT * FROM profiles WHERE id = ?").get(String(id));
+            const row = await db.prepare("SELECT * FROM profiles WHERE id = ?").get(String(id));
             const profile = Profile._fromRow(row);
             return Profile._populateUser(profile, populate);
         });
@@ -198,7 +198,7 @@ class Profile {
                 if (sortClauses.length) querySql += ` ORDER BY ${sortClauses.join(", ")}`;
             }
             if (limit) querySql += ` LIMIT ${Number(limit)}`;
-            const rows = db.prepare(querySql).all(...params);
+            const rows = await db.prepare(querySql).all(...params);
             const profiles = rows.map(r => Profile._fromRow(r));
             for (const p of profiles) {
                 await Profile._populateUser(p, populate);
@@ -266,26 +266,26 @@ class Profile {
         const db = getDb();
         const profile = await Profile.findOne(query);
         if (!profile) return { deletedCount: 0 };
-        const result = db.prepare("DELETE FROM profiles WHERE id = ?").run(profile.id);
+        const result = await db.prepare("DELETE FROM profiles WHERE id = ?").run(profile.id);
         return { deletedCount: result.changes };
     }
 
     static async deleteMany(query = {}) {
         const db = getDb();
         if (!query || Object.keys(query).length === 0) {
-            const result = db.prepare("DELETE FROM profiles").run();
+            const result = await db.prepare("DELETE FROM profiles").run();
             return { deletedCount: result.changes };
         }
         const { sql, params } = Profile._buildWhere(query);
-        const result = db.prepare(`DELETE FROM profiles ${sql}`).run(...params);
+        const result = await db.prepare(`DELETE FROM profiles ${sql}`).run(...params);
         return { deletedCount: result.changes };
     }
 
     static async countDocuments(query = {}) {
         const db = getDb();
         const { sql, params } = Profile._buildWhere(query);
-        const row = db.prepare(`SELECT COUNT(*) as count FROM profiles ${sql}`).get(...params);
-        return row ? row.count : 0;
+        const row = await db.prepare(`SELECT COUNT(*) as count FROM profiles ${sql}`).get(...params);
+        return row ? Number(row.count) : 0;
     }
 
     static async exists(query = {}) {

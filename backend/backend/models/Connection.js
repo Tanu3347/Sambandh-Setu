@@ -34,9 +34,9 @@ class Connection {
         const db = getDb();
         this.updatedAt = new Date();
         const requestId = typeof this.request === "object" && this.request ? (this.request.id || this.request._id) : this.request;
-        const existing = db.prepare("SELECT id FROM connections WHERE id = ?").get(this.id);
+        const existing = await db.prepare("SELECT id FROM connections WHERE id = ?").get(this.id);
         if (existing) {
-            db.prepare(`
+            await db.prepare(`
                 UPDATE connections SET
                     participant_a = ?, participant_b = ?, pair_key = ?,
                     request_id = ?, status = ?, stage = ?, updated_at = ?
@@ -52,7 +52,7 @@ class Connection {
                 this.id
             );
         } else {
-            db.prepare(`
+            await db.prepare(`
                 INSERT INTO connections (
                     id, participant_a, participant_b, pair_key,
                     request_id, status, stage, created_at, updated_at
@@ -135,7 +135,7 @@ class Connection {
         return new QueryBuilder(async ({ populate }) => {
             const db = getDb();
             const { sql, params } = Connection._buildWhere(query);
-            const row = db.prepare(`SELECT * FROM connections ${sql} LIMIT 1`).get(...params);
+            const row = await db.prepare(`SELECT * FROM connections ${sql} LIMIT 1`).get(...params);
             const conn = Connection._fromRow(row);
             return Connection._populate(conn, populate);
         });
@@ -145,7 +145,7 @@ class Connection {
         return new QueryBuilder(async ({ populate }) => {
             if (!id) return null;
             const db = getDb();
-            const row = db.prepare("SELECT * FROM connections WHERE id = ?").get(String(id));
+            const row = await db.prepare("SELECT * FROM connections WHERE id = ?").get(String(id));
             const conn = Connection._fromRow(row);
             return Connection._populate(conn, populate);
         });
@@ -161,7 +161,7 @@ class Connection {
                 if (sortClauses.length) querySql += ` ORDER BY ${sortClauses.join(", ")}`;
             }
             if (limit) querySql += ` LIMIT ${Number(limit)}`;
-            const rows = db.prepare(querySql).all(...params);
+            const rows = await db.prepare(querySql).all(...params);
             const conns = rows.map(r => Connection._fromRow(r));
             for (const c of conns) {
                 await Connection._populate(c, populate);
@@ -197,26 +197,26 @@ class Connection {
         const db = getDb();
         const conn = await Connection.findOne(query);
         if (!conn) return { deletedCount: 0 };
-        const result = db.prepare("DELETE FROM connections WHERE id = ?").run(conn.id);
+        const result = await db.prepare("DELETE FROM connections WHERE id = ?").run(conn.id);
         return { deletedCount: result.changes };
     }
 
     static async deleteMany(query = {}) {
         const db = getDb();
         if (!query || Object.keys(query).length === 0) {
-            const result = db.prepare("DELETE FROM connections").run();
+            const result = await db.prepare("DELETE FROM connections").run();
             return { deletedCount: result.changes };
         }
         const { sql, params } = Connection._buildWhere(query);
-        const result = db.prepare(`DELETE FROM connections ${sql}`).run(...params);
+        const result = await db.prepare(`DELETE FROM connections ${sql}`).run(...params);
         return { deletedCount: result.changes };
     }
 
     static async countDocuments(query = {}) {
         const db = getDb();
         const { sql, params } = Connection._buildWhere(query);
-        const row = db.prepare(`SELECT COUNT(*) as count FROM connections ${sql}`).get(...params);
-        return row ? row.count : 0;
+        const row = await db.prepare(`SELECT COUNT(*) as count FROM connections ${sql}`).get(...params);
+        return row ? Number(row.count) : 0;
     }
 
     static async exists(query = {}) {

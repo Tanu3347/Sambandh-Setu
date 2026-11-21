@@ -18,11 +18,11 @@ class Otp {
     async save() {
         const db = getDb();
         this.updatedAt = new Date();
-        const existing = db.prepare("SELECT id FROM otps WHERE id = ? OR email = ?").get(this.id, this.email);
+        const existing = await db.prepare("SELECT id FROM otps WHERE id = ? OR email = ?").get(this.id, this.email);
         if (existing) {
             this.id = existing.id;
             this._id = this.id;
-            db.prepare(`
+            await db.prepare(`
                 UPDATE otps SET
                     email = ?, code_hash = ?, attempts = ?, last_sent_at = ?,
                     expires_at = ?, locked_until = ?, updated_at = ?
@@ -38,7 +38,7 @@ class Otp {
                 this.id
             );
         } else {
-            db.prepare(`
+            await db.prepare(`
                 INSERT INTO otps (
                     id, email, code_hash, attempts, last_sent_at,
                     expires_at, locked_until, created_at, updated_at
@@ -110,7 +110,7 @@ class Otp {
         return new QueryBuilder(async () => {
             const db = getDb();
             const { sql, params } = Otp._buildWhere(query);
-            const row = db.prepare(`SELECT * FROM otps ${sql} LIMIT 1`).get(...params);
+            const row = await db.prepare(`SELECT * FROM otps ${sql} LIMIT 1`).get(...params);
             return Otp._fromRow(row);
         });
     }
@@ -119,7 +119,7 @@ class Otp {
         return new QueryBuilder(async () => {
             if (!id) return null;
             const db = getDb();
-            const row = db.prepare("SELECT * FROM otps WHERE id = ?").get(String(id));
+            const row = await db.prepare("SELECT * FROM otps WHERE id = ?").get(String(id));
             return Otp._fromRow(row);
         });
     }
@@ -173,26 +173,26 @@ class Otp {
         const db = getDb();
         const otp = await Otp.findOne(query);
         if (!otp) return { deletedCount: 0 };
-        const result = db.prepare("DELETE FROM otps WHERE id = ?").run(otp.id);
+        const result = await db.prepare("DELETE FROM otps WHERE id = ?").run(otp.id);
         return { deletedCount: result.changes };
     }
 
     static async deleteMany(query = {}) {
         const db = getDb();
         if (!query || Object.keys(query).length === 0) {
-            const result = db.prepare("DELETE FROM otps").run();
+            const result = await db.prepare("DELETE FROM otps").run();
             return { deletedCount: result.changes };
         }
         const { sql, params } = Otp._buildWhere(query);
-        const result = db.prepare(`DELETE FROM otps ${sql}`).run(...params);
+        const result = await db.prepare(`DELETE FROM otps ${sql}`).run(...params);
         return { deletedCount: result.changes };
     }
 
     static async countDocuments(query = {}) {
         const db = getDb();
         const { sql, params } = Otp._buildWhere(query);
-        const row = db.prepare(`SELECT COUNT(*) as count FROM otps ${sql}`).get(...params);
-        return row ? row.count : 0;
+        const row = await db.prepare(`SELECT COUNT(*) as count FROM otps ${sql}`).get(...params);
+        return row ? Number(row.count) : 0;
     }
 
     static async exists(query = {}) {

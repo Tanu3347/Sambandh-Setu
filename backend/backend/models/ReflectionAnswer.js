@@ -24,14 +24,14 @@ class ReflectionAnswer {
         const authId = typeof this.author === "object" && this.author ? (this.author.id || this.author._id) : this.author;
         const qId = typeof this.question === "object" && this.question ? (this.question.id || this.question._id) : this.question;
 
-        const existing = db.prepare("SELECT id FROM reflection_answers WHERE connection_id = ? AND author_id = ? AND question_id = ?").get(
+        const existing = await db.prepare("SELECT id FROM reflection_answers WHERE connection_id = ? AND author_id = ? AND question_id = ?").get(
             String(connId), String(authId), String(qId)
         );
 
         if (existing) {
             this.id = existing.id;
             this._id = this.id;
-            db.prepare(`
+            await db.prepare(`
                 UPDATE reflection_answers SET
                     value = ?, other_text = ?, sharing = ?, updated_at = ?
                 WHERE id = ?
@@ -43,7 +43,7 @@ class ReflectionAnswer {
                 this.id
             );
         } else {
-            db.prepare(`
+            await db.prepare(`
                 INSERT INTO reflection_answers (
                     id, connection_id, author_id, question_id,
                     value, other_text, sharing, created_at, updated_at
@@ -146,7 +146,7 @@ class ReflectionAnswer {
                 querySql += " ORDER BY created_at ASC";
             }
             if (limit) querySql += ` LIMIT ${Number(limit)}`;
-            const rows = db.prepare(querySql).all(...params);
+            const rows = await db.prepare(querySql).all(...params);
             const answers = rows.map(r => ReflectionAnswer._fromRow(r));
             for (const a of answers) {
                 await ReflectionAnswer._populate(a, populate);
@@ -159,7 +159,7 @@ class ReflectionAnswer {
         return new QueryBuilder(async ({ populate }) => {
             const db = getDb();
             const { sql, params } = ReflectionAnswer._buildWhere(query);
-            const row = db.prepare(`SELECT * FROM reflection_answers ${sql} LIMIT 1`).get(...params);
+            const row = await db.prepare(`SELECT * FROM reflection_answers ${sql} LIMIT 1`).get(...params);
             const ans = ReflectionAnswer._fromRow(row);
             return ReflectionAnswer._populate(ans, populate);
         });
@@ -169,7 +169,7 @@ class ReflectionAnswer {
         return new QueryBuilder(async ({ populate }) => {
             if (!id) return null;
             const db = getDb();
-            const row = db.prepare("SELECT * FROM reflection_answers WHERE id = ?").get(String(id));
+            const row = await db.prepare("SELECT * FROM reflection_answers WHERE id = ?").get(String(id));
             const ans = ReflectionAnswer._fromRow(row);
             return ReflectionAnswer._populate(ans, populate);
         });
@@ -211,26 +211,26 @@ class ReflectionAnswer {
         const db = getDb();
         const ans = await ReflectionAnswer.findOne(query);
         if (!ans) return { deletedCount: 0 };
-        const result = db.prepare("DELETE FROM reflection_answers WHERE id = ?").run(ans.id);
+        const result = await db.prepare("DELETE FROM reflection_answers WHERE id = ?").run(ans.id);
         return { deletedCount: result.changes };
     }
 
     static async deleteMany(query = {}) {
         const db = getDb();
         if (!query || Object.keys(query).length === 0) {
-            const result = db.prepare("DELETE FROM reflection_answers").run();
+            const result = await db.prepare("DELETE FROM reflection_answers").run();
             return { deletedCount: result.changes };
         }
         const { sql, params } = ReflectionAnswer._buildWhere(query);
-        const result = db.prepare(`DELETE FROM reflection_answers ${sql}`).run(...params);
+        const result = await db.prepare(`DELETE FROM reflection_answers ${sql}`).run(...params);
         return { deletedCount: result.changes };
     }
 
     static async countDocuments(query = {}) {
         const db = getDb();
         const { sql, params } = ReflectionAnswer._buildWhere(query);
-        const row = db.prepare(`SELECT COUNT(*) as count FROM reflection_answers ${sql}`).get(...params);
-        return row ? row.count : 0;
+        const row = await db.prepare(`SELECT COUNT(*) as count FROM reflection_answers ${sql}`).get(...params);
+        return row ? Number(row.count) : 0;
     }
 
     static async exists(query = {}) {

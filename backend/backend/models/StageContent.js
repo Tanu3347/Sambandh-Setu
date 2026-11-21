@@ -18,11 +18,11 @@ class StageContent {
     async save() {
         const db = getDb();
         this.updatedAt = new Date();
-        const existing = db.prepare("SELECT id FROM stage_contents WHERE id = ? OR stage = ?").get(this.id, this.stage);
+        const existing = await db.prepare("SELECT id FROM stage_contents WHERE id = ? OR stage = ?").get(this.id, this.stage);
         if (existing) {
             this.id = existing.id;
             this._id = this.id;
-            db.prepare(`
+            await db.prepare(`
                 UPDATE stage_contents SET
                     stage = ?, guidance = ?, for_you = ?, activities = ?,
                     resources = ?, is_mock = ?, updated_at = ?
@@ -38,7 +38,7 @@ class StageContent {
                 this.id
             );
         } else {
-            db.prepare(`
+            await db.prepare(`
                 INSERT INTO stage_contents (
                     id, stage, guidance, for_you, activities,
                     resources, is_mock, created_at, updated_at
@@ -108,7 +108,7 @@ class StageContent {
         return new QueryBuilder(async () => {
             const db = getDb();
             const { sql, params } = StageContent._buildWhere(query);
-            const row = db.prepare(`SELECT * FROM stage_contents ${sql} LIMIT 1`).get(...params);
+            const row = await db.prepare(`SELECT * FROM stage_contents ${sql} LIMIT 1`).get(...params);
             return StageContent._fromRow(row);
         });
     }
@@ -121,7 +121,7 @@ class StageContent {
         return new QueryBuilder(async () => {
             const db = getDb();
             const { sql, params } = StageContent._buildWhere(query);
-            const rows = db.prepare(`SELECT * FROM stage_contents ${sql}`).all(...params);
+            const rows = await db.prepare(`SELECT * FROM stage_contents ${sql}`).all(...params);
             return rows.map(r => StageContent._fromRow(r));
         });
     }
@@ -158,26 +158,26 @@ class StageContent {
         const db = getDb();
         const sc = await StageContent.findOne(query);
         if (!sc) return { deletedCount: 0 };
-        const result = db.prepare("DELETE FROM stage_contents WHERE id = ?").run(sc.id);
+        const result = await db.prepare("DELETE FROM stage_contents WHERE id = ?").run(sc.id);
         return { deletedCount: result.changes };
     }
 
     static async deleteMany(query = {}) {
         const db = getDb();
         if (!query || Object.keys(query).length === 0) {
-            const result = db.prepare("DELETE FROM stage_contents").run();
+            const result = await db.prepare("DELETE FROM stage_contents").run();
             return { deletedCount: result.changes };
         }
         const { sql, params } = StageContent._buildWhere(query);
-        const result = db.prepare(`DELETE FROM stage_contents ${sql}`).run(...params);
+        const result = await db.prepare(`DELETE FROM stage_contents ${sql}`).run(...params);
         return { deletedCount: result.changes };
     }
 
     static async countDocuments(query = {}) {
         const db = getDb();
         const { sql, params } = StageContent._buildWhere(query);
-        const row = db.prepare(`SELECT COUNT(*) as count FROM stage_contents ${sql}`).get(...params);
-        return row ? row.count : 0;
+        const row = await db.prepare(`SELECT COUNT(*) as count FROM stage_contents ${sql}`).get(...params);
+        return row ? Number(row.count) : 0;
     }
 
     static async exists(query = {}) {

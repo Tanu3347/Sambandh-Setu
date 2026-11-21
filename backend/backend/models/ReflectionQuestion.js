@@ -26,11 +26,11 @@ class ReflectionQuestion {
     async save() {
         const db = getDb();
         this.updatedAt = new Date();
-        const existing = db.prepare("SELECT id FROM reflection_questions WHERE id = ? OR key = ?").get(this.id, this.key);
+        const existing = await db.prepare("SELECT id FROM reflection_questions WHERE id = ? OR key = ?").get(this.id, this.key);
         if (existing) {
             this.id = existing.id;
             this._id = this.id;
-            db.prepare(`
+            await db.prepare(`
                 UPDATE reflection_questions SET
                     key = ?, order_num = ?, category = ?, prompt = ?, type = ?,
                     options = ?, min_selections = ?, max_selections = ?, allow_other = ?,
@@ -56,7 +56,7 @@ class ReflectionQuestion {
                 this.id
             );
         } else {
-            db.prepare(`
+            await db.prepare(`
                 INSERT INTO reflection_questions (
                     id, key, order_num, category, prompt, type,
                     options, min_selections, max_selections, allow_other,
@@ -161,7 +161,7 @@ class ReflectionQuestion {
             } else {
                 querySql += " ORDER BY order_num ASC";
             }
-            const rows = db.prepare(querySql).all(...params);
+            const rows = await db.prepare(querySql).all(...params);
             return rows.map(r => ReflectionQuestion._fromRow(r));
         });
     }
@@ -170,7 +170,7 @@ class ReflectionQuestion {
         return new QueryBuilder(async () => {
             const db = getDb();
             const { sql, params } = ReflectionQuestion._buildWhere(query);
-            const row = db.prepare(`SELECT * FROM reflection_questions ${sql} LIMIT 1`).get(...params);
+            const row = await db.prepare(`SELECT * FROM reflection_questions ${sql} LIMIT 1`).get(...params);
             return ReflectionQuestion._fromRow(row);
         });
     }
@@ -211,26 +211,26 @@ class ReflectionQuestion {
         const db = getDb();
         const q = await ReflectionQuestion.findOne(query);
         if (!q) return { deletedCount: 0 };
-        const result = db.prepare("DELETE FROM reflection_questions WHERE id = ?").run(q.id);
+        const result = await db.prepare("DELETE FROM reflection_questions WHERE id = ?").run(q.id);
         return { deletedCount: result.changes };
     }
 
     static async deleteMany(query = {}) {
         const db = getDb();
         if (!query || Object.keys(query).length === 0) {
-            const result = db.prepare("DELETE FROM reflection_questions").run();
+            const result = await db.prepare("DELETE FROM reflection_questions").run();
             return { deletedCount: result.changes };
         }
         const { sql, params } = ReflectionQuestion._buildWhere(query);
-        const result = db.prepare(`DELETE FROM reflection_questions ${sql}`).run(...params);
+        const result = await db.prepare(`DELETE FROM reflection_questions ${sql}`).run(...params);
         return { deletedCount: result.changes };
     }
 
     static async countDocuments(query = {}) {
         const db = getDb();
         const { sql, params } = ReflectionQuestion._buildWhere(query);
-        const row = db.prepare(`SELECT COUNT(*) as count FROM reflection_questions ${sql}`).get(...params);
-        return row ? row.count : 0;
+        const row = await db.prepare(`SELECT COUNT(*) as count FROM reflection_questions ${sql}`).get(...params);
+        return row ? Number(row.count) : 0;
     }
 
     static async exists(query = {}) {

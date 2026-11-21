@@ -13,6 +13,11 @@ const corsOptions = {
         }
 
         const allowedOrigins = parseAllowedOrigins();
+        // Allow all origins when CORS_ALLOWED_ORIGINS is not set, or contains wildcard '*'
+        if (allowedOrigins.length === 0 || allowedOrigins.includes("*")) {
+            return callback(null, true);
+        }
+
         return callback(null, allowedOrigins.includes(origin));
     },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],

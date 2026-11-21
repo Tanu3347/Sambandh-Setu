@@ -14,6 +14,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -37,6 +38,15 @@ app = FastAPI(
     title="Setu Guide",
     version="1.0.0",
     description="Stage-aware Setu Guide assistant. POST /v1/guide/chat, GET /health.",
+)
+
+# Allow all origins for seamless development and multi-cloud deployment (Vercel, Render)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Only these names may appear in error details. Anything else in an error path

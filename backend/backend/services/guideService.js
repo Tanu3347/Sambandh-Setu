@@ -51,7 +51,7 @@ const chat = async (payload = {}) => {
                         "Content-Type": "application/json"
                     },
                     body: JSON.stringify(payload),
-                    signal: AbortSignal.timeout(30000)
+                    signal: AbortSignal.timeout(45000)
                 });
             } catch (initialErr) {
                 if (fetchUrl.includes("localhost")) {
@@ -62,7 +62,7 @@ const chat = async (payload = {}) => {
                             "Content-Type": "application/json"
                         },
                         body: JSON.stringify(payload),
-                        signal: AbortSignal.timeout(30000)
+                        signal: AbortSignal.timeout(45000)
                     });
                 } else {
                     throw initialErr;

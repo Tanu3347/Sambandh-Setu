@@ -1,3 +1,4 @@
+const fs = require("fs");
 const path = require("path");
 const http = require("http");
 const { spawn } = require("child_process");
@@ -57,7 +58,18 @@ function spawnAiProcess() {
 }
 
 async function ensureAiService() {
-    if (process.env.NODE_ENV === "test") {
+    if (process.env.NODE_ENV === "test" || process.env.NODE_ENV === "production") {
+        return;
+    }
+
+    const guideUrl = process.env.GUIDE_SERVICE_URL || "";
+    if (guideUrl && !guideUrl.includes("localhost") && !guideUrl.includes("127.0.0.1")) {
+        // Remote AI service configured (e.g. Render), skip local process spawning
+        return;
+    }
+
+    const aiDir = path.resolve(__dirname, "../../../setu_ai");
+    if (!fs.existsSync(aiDir)) {
         return;
     }
 

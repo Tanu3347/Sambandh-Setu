@@ -75,6 +75,7 @@ const meView = (user, profile, settings, { verification = {}, photoCount = 0 } =
         phoneVerified: Boolean(user.phone_verified),
         onboardingCompleted: Boolean(user.onboarding_completed),
         status: user.status,
+        role: user.role || "member",
         hasPassword: Boolean(user.password_hash),
         createdAt: user.created_at,
         photoUrl: Users.photoUrl(profile?.avatarPhotoId),

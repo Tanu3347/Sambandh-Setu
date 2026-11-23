@@ -215,3 +215,40 @@ Start with `npm start` after configuring deployment environment variables. The p
 ## B3 tests
 
 `npm test` includes the B3 unit tests. Run `npm run test:b3:integration` for MongoDB-backed B3 tests; this requires all nine seeded users, `NODE_ENV=development`, a configured `JWT_SECRET`, and a reachable MongoDB instance. The integration test chooses a seeded-user pair without an existing active connection, creates temporary connection/chat/message data, and removes its data and restores the profile afterward.
+
+## Live features and realtime
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/features` | Public (session optional). `{ features: { chat: true, ... }, announcement, maintenance, version }` as this member experiences them. |
+| GET | `/realtime/stream` | Server-Sent Events. `event: update` with `{ notifications, messages, requests, features: { version }, announcement, maintenance }` whenever something changes; the connection closes after about 25 seconds and the client reconnects. |
+| GET | `/realtime/poll` | The same snapshot as JSON, for phones and when live updates are off. |
+
+A feature that is off (or not rolled out to this member) answers `403 FEATURE_OFF`. In maintenance
+mode, writes from members answer `503 MAINTENANCE`; reads, sign-in and staff keep working.
+
+## Team console
+
+Every route needs a permission; members get `404`. `X-Admin-Key: <ADMIN_API_KEY>` acts as super admin.
+
+| Method | Path | Permission |
+|---|---|---|
+| POST | `/admin/claim` `{ key }` | Signed in; makes this account super admin |
+| GET | `/admin/me` | Any console role |
+| GET | `/admin/overview` | `overview.view` |
+| GET | `/admin/analytics?days=14` | `analytics.view` |
+| GET | `/admin/verifications?status=in_review\|needs_action\|verified\|all`, `/admin/verifications/:id/docs` | `verifications.review` |
+| POST | `/admin/verifications/:id/decision` `{ status: verified\|needs_action, note }` | `verifications.review` |
+| GET | `/admin/reports?status=open\|closed\|all`, `/admin/reports/:id/images` | `reports.review` |
+| POST | `/admin/reports/:id/close` `{ action: none\|suspend, note }` | `reports.review` (+ `members.suspend` to suspend) |
+| GET | `/admin/tickets?status=open\|closed\|all` | `tickets.handle` |
+| POST | `/admin/tickets/:id/close` `{ reply, note }` | `tickets.handle` |
+| GET | `/admin/members?q=&status=&role=&page=`, `/admin/members/:userId` | `members.view` |
+| POST | `/admin/members/:userId/suspend`, `/admin/members/:userId/reactivate` | `members.suspend` |
+| POST | `/admin/members/:userId/role` `{ role }` | `members.roles` |
+| GET | `/admin/roles` | `roles.manage` or `members.roles` |
+| POST, PATCH, DELETE | `/admin/roles`, `/admin/roles/:key` | `roles.manage` |
+| GET, PATCH | `/admin/features`, `/admin/features/:key` `{ enabled, rollout, roles, config }` | `features.manage` |
+| GET | `/admin/recommendations` | `recommendations.manage` or `analytics.view` |
+| PATCH | `/admin/recommendations` `{ weights, tuning }` or `{ reset: true }` | `recommendations.manage` |
+| GET | `/admin/audit` | `audit.view` |

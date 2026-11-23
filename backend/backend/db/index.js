@@ -83,7 +83,7 @@ function createSqliteAdapter(sqliteDb) {
 
 // Schema. Portable SQL: TEXT ids, ISO-8601 TEXT timestamps, INTEGER booleans, JSON stored as TEXT.
 const TABLES = [
-    "admin_audit", "guide_messages", "guide_conversations", "data_requests", "support_tickets",
+    "rec_events", "app_config", "feature_flags", "roles", "admin_audit", "guide_messages", "guide_conversations", "data_requests", "support_tickets",
     "verifications", "family_members", "reports", "blocks", "skips", "bookmarks", "photos",
     "user_settings", "stage_completions", "reflection_answers", "notifications", "messages", "chats",
     "connection_requests", "connections", "otps", "profiles", "users"
@@ -103,6 +103,7 @@ CREATE TABLE IF NOT EXISTS users (
     status TEXT NOT NULL DEFAULT 'active',
     token_version INTEGER NOT NULL DEFAULT 0,
     is_seeded INTEGER NOT NULL DEFAULT 0,
+    role TEXT NOT NULL DEFAULT 'member',
     last_active_at TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
@@ -344,14 +345,70 @@ CREATE TABLE IF NOT EXISTS guide_messages (
 );
 CREATE INDEX IF NOT EXISTS idx_guide_msg_conv ON guide_messages(conversation_id, created_at);
 
+CREATE TABLE IF NOT EXISTS roles (
+    key TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    permissions TEXT NOT NULL DEFAULT '[]',
+    built_in INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS feature_flags (
+    key TEXT PRIMARY KEY,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    rollout INTEGER NOT NULL DEFAULT 100,
+    roles TEXT NOT NULL DEFAULT '[]',
+    config TEXT NOT NULL DEFAULT '{}',
+    updated_by TEXT,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS app_config (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_by TEXT,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS rec_events (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    target_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_rec_events_user ON rec_events(user_id, type, created_at);
+CREATE INDEX IF NOT EXISTS idx_rec_events_target ON rec_events(target_id, type);
+CREATE INDEX IF NOT EXISTS idx_rec_events_time ON rec_events(created_at);
+
 CREATE TABLE IF NOT EXISTS admin_audit (
     id TEXT PRIMARY KEY,
+    actor_id TEXT,
     action TEXT NOT NULL,
     ref_id TEXT,
     note TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL
 );
 `;
+
+/** Columns added after the first release. Applied on start; each is a no-op when present. */
+const MIGRATIONS = [
+    { table: "users", column: "role", ddl: "TEXT NOT NULL DEFAULT 'member'" },
+    { table: "admin_audit", column: "actor_id", ddl: "TEXT" }
+];
+
+const migratePg = async (pool) => {
+    for (const m of MIGRATIONS) await pool.query(`ALTER TABLE ${m.table} ADD COLUMN IF NOT EXISTS ${m.column} ${m.ddl}`);
+};
+
+const migrateSqlite = (sqlite) => {
+    for (const m of MIGRATIONS) {
+        const cols = sqlite.prepare(`PRAGMA table_info(${m.table})`).all().map((c) => c.name);
+        if (!cols.includes(m.column)) sqlite.exec(`ALTER TABLE ${m.table} ADD COLUMN ${m.column} ${m.ddl}`);
+    }
+};
 
 const resolveTarget = (target) => {
     if (target) return target;
@@ -396,7 +453,7 @@ const initDb = (target) => {
         });
         pool.on("error", (err) => console.error("Postgres idle client error: code=%s", err.code || "none"));
         dbInstance = createPgAdapter(pool);
-        readyPromise = pool.query(SCHEMA_DDL).then(() => true);
+        readyPromise = pool.query(SCHEMA_DDL).then(() => migratePg(pool)).then(() => true);
         readyPromise.catch((err) => {
             console.error("Postgres schema init failed: code=%s", err.code || "none");
             readyPromise = null;
@@ -414,6 +471,7 @@ const initDb = (target) => {
         try { sqlite.exec("PRAGMA journal_mode = WAL;"); } catch { /* optional */ }
     }
     sqlite.exec(SCHEMA_DDL);
+    migrateSqlite(sqlite);
     dbInstance = createSqliteAdapter(sqlite);
     readyPromise = Promise.resolve(true);
     return dbInstance;

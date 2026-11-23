@@ -21,6 +21,30 @@ export function Meta({ icon, text }: { icon: IconName; text?: string }) {
   );
 }
 
+/** Why the recommender suggested this person ("You both value Honesty"). Never a score. */
+export function Reasons({ reasons, compact }: { reasons?: string[]; compact?: boolean }) {
+  if (!reasons || !reasons.length) return null;
+  if (compact) {
+    return (
+      <View style={styles.reasonLine} accessibilityLabel={`Why suggested: ${reasons.join('. ')}`}>
+        <Ionicons name="sparkles-outline" size={13} color={colors.primary} />
+        <Text style={styles.reasonText} numberOfLines={1}>{reasons.slice(0, 2).join(' · ')}</Text>
+      </View>
+    );
+  }
+  return (
+    <View style={styles.reasonBox} accessibilityLabel={`Why suggested: ${reasons.join('. ')}`}>
+      <Text style={styles.reasonHead}>SHARED ALIGNMENT</Text>
+      {reasons.slice(0, 3).map((r) => (
+        <View key={r} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+          <Ionicons name="checkmark-circle" size={14} color={colors.primary} />
+          <Text style={styles.reasonText}>{r}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 /** Large Discover card (App "connection main - discover"). */
 export function DiscoverCard({ p, onView, onInterest, onBookmark, sent }: { p: Person; onView: () => void; onInterest: () => void; onBookmark: () => void; sent?: boolean }) {
   return (
@@ -42,6 +66,7 @@ export function DiscoverCard({ p, onView, onInterest, onBookmark, sent }: { p: P
         <Meta icon="location-outline" text={p.location} />
         {p.bio ? <Text style={styles.quote} numberOfLines={3}>“{p.bio}”</Text> : null}
         {p.interests.length ? <View style={styles.tags}>{p.interests.slice(0, 4).map((t) => <Tag key={t} label={t} />)}</View> : null}
+        <Reasons reasons={p.reasons} />
         <View style={{ flexDirection: 'row', gap: 10, marginTop: space.md }}>
           <View style={{ flex: 1 }}><Button title="View Profile" variant="outline" size="sm" onPress={onView} /></View>
           <View style={{ flex: 1 }}><Button title={sent ? 'Interest Sent' : 'Express Interest'} icon={sent ? 'checkmark' : 'heart'} size="sm" onPress={onInterest} disabled={sent} /></View>
@@ -66,6 +91,7 @@ export function DiscoverRow({ p, selected, onSelect, onView, onInterest, onBookm
           <Meta icon="briefcase-outline" text={p.profession} />
           {p.bio ? <Text style={styles.rowQuote} numberOfLines={1}>“{p.bio}”</Text> : null}
           {p.interests.length ? <View style={[styles.tags, { marginTop: 8 }]}>{p.interests.slice(0, 4).map((t) => <Tag key={t} label={t} />)}</View> : null}
+          <Reasons reasons={p.reasons} compact />
         </View>
         <IconButton icon={p.bookmarked ? 'bookmark' : 'bookmark-outline'} label={p.bookmarked ? 'Remove bookmark' : 'Bookmark'} color={colors.primary} size={34} onPress={onBookmark} />
       </View>
@@ -162,5 +188,9 @@ const styles = StyleSheet.create({
   rowQuote: { fontFamily: fonts.regular, fontStyle: 'italic', fontSize: 12.5, color: colors.textSoft, marginTop: 6 },
   menuItem: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 50, paddingHorizontal: 8, borderRadius: radius.sm },
   menuText: { fontFamily: fonts.medium, fontSize: 15, color: colors.text },
+  reasonBox: { marginTop: 12, backgroundColor: colors.bgTint, borderRadius: radius.card, padding: 10, borderWidth: 1, borderColor: colors.border },
+  reasonHead: { fontFamily: fonts.semibold, fontSize: 10.5, letterSpacing: 0.8, color: colors.muted },
+  reasonLine: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
+  reasonText: { fontFamily: fonts.medium, fontSize: 12.5, color: colors.textSoft, flexShrink: 1 },
   line: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fff', borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: 14, ...shadow.card },
 });

@@ -214,7 +214,7 @@ test("verification stays in review until a person decides", async () => {
     assert.equal(again.status, 409);
     const fake = await api.call("POST", "/verification", { token: m.token, body: { type: "professional", docType: "Salary slip", images: ["data:image/png;base64,AAAA"] } });
     assert.equal(fake.status, 400);
-    assert.equal((await api.call("GET", "/admin/queue")).status, 404, "admin is disabled without a key");
+    assert.equal((await api.call("GET", "/admin/overview")).status, 404, "the team console is hidden from the public");
 });
 
 test("audit #10: deleting an account really deletes it", async () => {

@@ -7,6 +7,7 @@ const Access = require("../services/access");
 const J = require("../services/journey");
 const { notify } = require("../services/notify");
 const { personCard } = require("../services/views");
+const Rec = require("../services/recommender");
 const ApiError = require("../utils/ApiError");
 const H = require("../utils/helpers");
 
@@ -66,6 +67,7 @@ const sendRequest = async (req, res) => {
     await getDb().prepare("INSERT INTO connection_requests (id, sender_id, recipient_id, pair_key, message, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?)")
         .run(id, me.id, recipientId, H.pairKey(me.id, recipientId), message, now, now);
     await notify(recipientId, { actorId: me.id, type: "request_received", refId: id });
+    await Rec.logEvent(me.id, recipientId, "interest");
     H.ok(res, { id, status: "pending" }, 201);
 };
 
@@ -102,6 +104,7 @@ const acceptRequest = async (req, res) => {
         await db.prepare("INSERT INTO chats (id, connection_id, created_at) VALUES (?, ?, ?)").run(chat.id, conn.id, now);
     }
     await notify(r.sender_id, { actorId: r.recipient_id, type: "request_accepted", refId: conn.id });
+    await Rec.logEvent(r.recipient_id, r.sender_id, "accept");
     H.ok(res, { connectionId: conn.id, chatId: chat.id });
 };
 

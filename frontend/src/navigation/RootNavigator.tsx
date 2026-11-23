@@ -11,6 +11,8 @@ import { WebShell } from '../layout/WebShell';
 import { LogoMark } from '../ui';
 import BottomTabBar from './BottomTabBar';
 import { navigationRef, syncCurrentRoute } from './navRef';
+import { gated, LiveBanner } from '../components/Live';
+import Admin from '../screens/admin/Admin';
 
 import Landing from '../screens/public/Landing';
 import { ForgotPassword, Login, SignUp } from '../screens/public/Auth';
@@ -40,6 +42,18 @@ import { ChatSettings, CustomChatPrefs, DiscoverySettings, NotificationSettings 
 import { About, ContactSupport, FAQDetail, FAQs, Help, ReportProblem, SafetyResources } from '../screens/settings/Help';
 
 const Stack = createNativeStackNavigator();
+
+// Screens that pause when an admin switches their feature off (defined once so identities stay stable).
+const ChatsG = gated(Chats, 'chat');
+const ChatThreadG = gated(ChatThread, 'chat');
+const ChatProfileG = gated(ChatProfile, 'chat');
+const GuideChatG = gated(GuideChat, 'setu_guide');
+const ReflectG = gated(Reflect, 'reflect');
+const FamilyAccessG = gated(FamilyAccess, 'family_access');
+const FamilyAddG = gated(FamilyAdd, 'family_access');
+const FamilyInviteFormG = gated(FamilyInviteForm, 'family_access');
+const FamilyInviteG = gated(FamilyInvite, 'family_access');
+const VerificationFlowG = gated(VerificationFlow, 'verification');
 const Tab = createBottomTabNavigator();
 
 function MainTabs() {
@@ -48,7 +62,7 @@ function MainTabs() {
       <Tab.Screen name="Home" component={Home} options={{ title: 'Home' }} />
       <Tab.Screen name="Connections" component={Connections} options={{ title: 'Connections' }} />
       <Tab.Screen name="Guide" component={GuideHome} options={{ title: 'Setu Guide' }} />
-      <Tab.Screen name="Chats" component={Chats} options={{ title: 'Chat' }} />
+      <Tab.Screen name="Chats" component={ChatsG} options={{ title: 'Chat' }} />
       <Tab.Screen name="Profile" component={MyProfile} options={{ title: 'My Profile' }} />
     </Tab.Navigator>
   );
@@ -130,6 +144,7 @@ const linking: LinkingOptions<any> = {
       SafetyResources: 'settings/help/safety',
       About: 'settings/about',
       Logout: 'logout',
+      Admin: 'admin/:section?',
     },
   },
 };
@@ -177,10 +192,10 @@ export default function RootNavigator() {
           <Stack.Screen name="PersonProfile" component={PersonProfile} options={{ title: 'Profile' }} />
           <Stack.Screen name="Journey" component={Journey} options={{ title: 'Your Journey' }} />
           <Stack.Screen name="Stage" component={Stage} options={{ title: 'Stage' }} />
-          <Stack.Screen name="Reflect" component={Reflect} options={{ title: 'Reflect' }} />
-          <Stack.Screen name="GuideChat" component={GuideChat} options={{ title: 'Chat with Setu Guide' }} />
-          <Stack.Screen name="ChatThread" component={ChatThread} options={{ title: 'Chat' }} />
-          <Stack.Screen name="ChatProfile" component={ChatProfile} options={{ title: 'Chat profile' }} />
+          <Stack.Screen name="Reflect" component={ReflectG} options={{ title: 'Reflect' }} />
+          <Stack.Screen name="GuideChat" component={GuideChatG} options={{ title: 'Chat with Setu Guide' }} />
+          <Stack.Screen name="ChatThread" component={ChatThreadG} options={{ title: 'Chat' }} />
+          <Stack.Screen name="ChatProfile" component={ChatProfileG} options={{ title: 'Chat profile' }} />
           <Stack.Screen name="MyProfileTabs" component={MyProfileTabs} options={{ title: 'My Profile' }} />
           <Stack.Screen name="EditAbout" component={EditAbout} options={{ title: 'Edit Profile' }} />
           <Stack.Screen name="LifestyleEdit" component={LifestyleEdit} options={{ title: 'Lifestyle' }} />
@@ -209,12 +224,12 @@ export default function RootNavigator() {
           <Stack.Screen name="BlockedUsers" component={BlockedUsers} options={{ title: 'Blocked Users' }} />
           <Stack.Screen name="ReportSafety" component={ReportSafety} options={{ title: 'Report & Safety' }} />
           <Stack.Screen name="ReportFlow" component={ReportFlow} options={{ title: 'Report' }} />
-          <Stack.Screen name="FamilyAccess" component={FamilyAccess} options={{ title: 'Family Access' }} />
-          <Stack.Screen name="FamilyAdd" component={FamilyAdd} options={{ title: 'Add Family Member' }} />
-          <Stack.Screen name="FamilyInviteForm" component={FamilyInviteForm} options={{ title: 'Invite Family Member' }} />
+          <Stack.Screen name="FamilyAccess" component={FamilyAccessG} options={{ title: 'Family Access' }} />
+          <Stack.Screen name="FamilyAdd" component={FamilyAddG} options={{ title: 'Add Family Member' }} />
+          <Stack.Screen name="FamilyInviteForm" component={FamilyInviteFormG} options={{ title: 'Invite Family Member' }} />
           <Stack.Screen name="FamilyMember" component={FamilyMember} options={{ title: 'Manage Access' }} />
           <Stack.Screen name="Verification" component={Verification} options={{ title: 'Verification' }} />
-          <Stack.Screen name="VerificationFlow" component={VerificationFlow} options={{ title: 'Verification' }} />
+          <Stack.Screen name="VerificationFlow" component={VerificationFlowG} options={{ title: 'Verification' }} />
           <Stack.Screen name="GuideSettings" component={GuideSettings} options={{ title: 'Setu Guide Settings' }} />
           <Stack.Screen name="GuideAccess" component={GuideAccess} options={{ title: 'What Setu Guide can access' }} />
           <Stack.Screen name="GuideHistory" component={GuideHistory} options={{ title: 'AI Conversation History' }} />
@@ -233,9 +248,10 @@ export default function RootNavigator() {
           <Stack.Screen name="SafetyResources" component={SafetyResources} options={{ title: 'Safety Resources' }} />
           <Stack.Screen name="About" component={About} options={{ title: 'About Sambandh Setu' }} />
           <Stack.Screen name="Logout" component={Logout} options={{ title: 'Log Out' }} />
+          <Stack.Screen name="Admin" component={Admin} options={{ title: 'Team console · Sambandh Setu' }} />
         </>
       )}
-      <Stack.Screen name="FamilyInvite" component={FamilyInvite} options={{ title: 'Family Access Invitation · Sambandh Setu' }} />
+      <Stack.Screen name="FamilyInvite" component={FamilyInviteG} options={{ title: 'Family Access Invitation · Sambandh Setu' }} />
       <Stack.Screen name="Info" component={Info} options={{ title: 'Sambandh Setu' }} />
     </Stack.Navigator>
   );
@@ -252,6 +268,7 @@ export default function RootNavigator() {
       documentTitle={{ formatter: (options, route) => options?.title || route?.name || 'Sambandh Setu' }}
       fallback={<Splash />}
     >
+      <LiveBanner />
       {signedIn && wide ? <WebShell>{stack}</WebShell> : stack}
     </NavigationContainer>
   );

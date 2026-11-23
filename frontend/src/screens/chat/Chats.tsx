@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ChatItem, Chats as Api } from '../../api';
 import { useLoad } from '../../hooks/useAsync';
 import { useLayout } from '../../hooks/useLayout';
+import { useLiveRefresh } from '../../context/LiveContext';
 import { colors, fonts, radius, space } from '../../theme';
 import { Avatar, EmptyState, ErrorState, FilterPills, IconButton, Screen, SkeletonList } from '../../ui';
 import { chatStamp } from '../../utils/format';
@@ -14,6 +15,7 @@ type Filter = 'all' | 'active' | 'new' | 'muted';
 export default function Chats({ navigation }: any) {
   const { wide } = useLayout();
   const { data, error, loading, reload, refreshing, refresh } = useLoad(() => Api.list());
+  useLiveRefresh((s) => [s.messages.latest, s.messages.unread], reload);
   const [filter, setFilter] = useState<Filter>('all');
   const [q, setQ] = useState('');
   const [searching, setSearching] = useState(false);

@@ -137,6 +137,26 @@ const validatePatch = (patch, defaults = DEFAULTS, prefix = "") => {
     return clean;
 };
 
+/** Settings object from a stored JSON document (defaults filled in, expired temporary hide cleared). */
+const fromStored = (data) => {
+    const settings = deepMerge(DEFAULTS, parseJson(data, {}));
+    if (settings.discovery.hideProfile && settings.discovery.hideUntil && Date.parse(settings.discovery.hideUntil) < Date.now()) {
+        settings.discovery.hideProfile = false;
+        settings.discovery.hideUntil = "";
+    }
+    return settings;
+};
+
+/** Settings for many members in one query: { userId: settings }. */
+const getMany = async (userIds) => {
+    const out = {};
+    if (!userIds.length) return out;
+    const rows = await getDb().prepare(`SELECT user_id, data FROM user_settings WHERE user_id IN (${userIds.map(() => "?").join(",")})`).all(...userIds);
+    const byId = Object.fromEntries(rows.map((r) => [r.user_id, r.data]));
+    for (const id of userIds) out[id] = fromStored(byId[id]);
+    return out;
+};
+
 const getSettings = async (userId) => {
     const row = await getDb().prepare("SELECT data FROM user_settings WHERE user_id = ?").get(String(userId));
     const settings = deepMerge(DEFAULTS, parseJson(row?.data, {}));
@@ -165,4 +185,4 @@ const updateSettings = async (userId, patch) => {
     return getSettings(userId);
 };
 
-module.exports = { DEFAULTS, ENUMS, getSettings, updateSettings, validatePatch, deepMerge };
+module.exports = { DEFAULTS, ENUMS, getSettings, getMany, fromStored, updateSettings, validatePatch, deepMerge };

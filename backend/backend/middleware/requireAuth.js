@@ -29,7 +29,7 @@ const userFromToken = async (token) => {
     }
     if (typeof claims.sub !== "string") return null;
     const user = await Users.findById(claims.sub);
-    if (!user || user.status === "deleted") return null;
+    if (!user || user.status === "deleted" || user.status === "suspended") return null;
     if (Number(claims.ver || 0) !== Number(user.token_version || 0)) return null;
     return user;
 };
@@ -69,3 +69,5 @@ module.exports = requireAuth;
 module.exports.requireAuth = requireAuth;
 module.exports.optionalAuth = optionalAuth;
 module.exports.createToken = createToken;
+module.exports.userFromToken = userFromToken;
+module.exports.bearer = bearer;

@@ -6,12 +6,14 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Chats as Api, Message, errorMessage } from '../../api';
 import { useLoad } from '../../hooks/useAsync';
 import { useLayout } from '../../hooks/useLayout';
+import { useLiveRefresh } from '../../context/LiveContext';
 import { colors, fonts, radius, shadow, space } from '../../theme';
 import { Avatar, Button, Card, ErrorState, IconButton, InfoNote, ListRow, Loading, Screen, StatePill, Tag, Txt, useGoBack, useToast } from '../../ui';
 import { ActionMenu, useBlock } from '../../components/People';
 import { dayLabel, formatDate, formatTime, timeAgo } from '../../utils/format';
 
-const POLL_MS = 6000;
+/** Fallback interval; new messages normally arrive through the realtime stream. */
+const POLL_MS = 20000;
 
 /** "inperson chat page" / "Chat Interface". Polls for new messages while open. */
 export function ChatThread({ route, navigation }: any) {
@@ -46,6 +48,7 @@ export function ChatThread({ route, navigation }: any) {
     const t = setInterval(fetchLatest, POLL_MS);
     return () => clearInterval(t);
   }, [fetchLatest]));
+  useLiveRefresh((s) => s.messages.latest, fetchLatest);
   useEffect(() => { setTimeout(() => scroller.current?.scrollToEnd({ animated: false }), 60); }, [messages.length]);
 
   const loadOlder = async () => {

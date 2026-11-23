@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { colors, shadow } from '../theme';
 import { useLayout } from '../hooks/useLayout';
+import { useLive } from '../context/LiveContext';
 
 const ICONS: Record<string, { on: any; off: any; label: string }> = {
   Home: { on: 'home', off: 'home-outline', label: 'Home' },
@@ -21,7 +22,9 @@ const ICONS: Record<string, { on: any; off: any; label: string }> = {
 export default function BottomTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const { wide } = useLayout();
+  const { snapshot } = useLive();
   if (wide) return null;
+  const dots: Record<string, boolean> = { Chats: (snapshot?.messages.unread || 0) > 0, Connections: (snapshot?.requests.pending || 0) > 0 };
   return (
     <View style={[styles.wrap, { bottom: Math.max(insets.bottom, 12) }]} pointerEvents="box-none">
       <View style={styles.bar} accessibilityRole="tablist">
@@ -43,6 +46,7 @@ export default function BottomTabBar({ state, navigation }: BottomTabBarProps) {
             >
               <View style={[styles.circle, guide && !focused && styles.guideIdle, focused && styles.active]}>
                 <Ionicons name={focused ? meta.on : meta.off} size={guide ? 26 : 22} color={focused ? '#fff' : guide ? colors.primary : colors.text} />
+                {dots[route.name] ? <View style={styles.dot} accessibilityLabel="New activity" /> : null}
               </View>
             </Pressable>
           );
@@ -59,4 +63,5 @@ const styles = StyleSheet.create({
   circle: { width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center' },
   guideIdle: { backgroundColor: colors.primarySoft },
   active: { backgroundColor: colors.primary, ...shadow.button },
+  dot: { position: 'absolute', top: 9, right: 10, width: 9, height: 9, borderRadius: 5, backgroundColor: colors.dangerStrong, borderWidth: 1.5, borderColor: '#fff' },
 });

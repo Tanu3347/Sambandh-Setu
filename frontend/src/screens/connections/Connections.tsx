@@ -9,6 +9,8 @@ import { Avatar, Button, Card, CheckRow, ConfirmDialog, EmptyState, ErrorState, 
 import { ActionMenu, DiscoverCard, DiscoverRow, Meta, PersonLine, useBlock, useBookmark, VerifiedTick } from '../../components/People';
 import { ProfileDetail } from '../../components/ProfileDetail';
 import { usePersonActions } from './PersonProfile';
+import { useLive, useLiveRefresh } from '../../context/LiveContext';
+import { FeaturePaused } from '../../components/Live';
 import { formatDate, nameAge, timeAgo } from '../../utils/format';
 
 type Tab = 'discover' | 'requests' | 'active';
@@ -31,13 +33,20 @@ export default function Connections({ route, navigation }: any) {
     </>
   );
   if (tab === 'discover') return <Discover header={header} navigation={navigation} q={route.params?.q} />;
+
   if (tab === 'requests') return <RequestsTab header={header} navigation={navigation} />;
   return <ActiveTab header={header} navigation={navigation} />;
 }
 
 // ---------------- Discover ----------------
 
-function Discover({ header, navigation, q: initialQ }: { header: React.ReactNode; navigation: any; q?: string }) {
+function Discover(props: { header: React.ReactNode; navigation: any; q?: string }) {
+  const { on } = useLive();
+  if (!on('discover')) return <Screen variant="none" tab>{props.header}<FeaturePaused feature="discover" inline /></Screen>;
+  return <DiscoverList {...props} />;
+}
+
+function DiscoverList({ header, navigation, q: initialQ }: { header: React.ReactNode; navigation: any; q?: string }) {
   const { wide } = useLayout();
   const toast = useToast();
   const [q, setQ] = useState(initialQ || '');
@@ -184,6 +193,7 @@ function RequestsTab({ header, navigation }: { header: React.ReactNode; navigati
   const [sub, setSub] = useState<'received' | 'sent'>('received');
   const [selected, setSelected] = useState<string | null>(null);
   const { data, setData, error, loading, reload, refreshing, refresh } = useLoad(() => Requests.list());
+  useLiveRefresh((s) => s.requests.pending, reload);
   const block = useBlock(reload);
   const [busy, setBusy] = useState<string | null>(null);
 

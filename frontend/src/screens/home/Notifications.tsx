@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { NotificationItem, Notifications as Api } from '../../api';
 import { useLoad } from '../../hooks/useAsync';
+import { useLiveRefresh } from '../../context/LiveContext';
 import { colors, fonts, radius, space } from '../../theme';
 import { EmptyState, ErrorState, Screen, SkeletonList, TextLink } from '../../ui';
 import { timeAgo } from '../../utils/format';
@@ -16,6 +17,7 @@ const ICON: Record<string, [any, keyof typeof colors.tint]> = {
 
 export default function Notifications({ navigation }: any) {
   const { data, error, loading, reload, refreshing, refresh, setData } = useLoad(() => Api.list());
+  useLiveRefresh((s) => s.notifications.latest, reload);
 
   const open = async (n: NotificationItem) => {
     if (!n.read) { Api.read(n.id).catch(() => {}); setData((d) => d && { ...d, items: d.items.map((i) => (i.id === n.id ? { ...i, read: true } : i)) }); }

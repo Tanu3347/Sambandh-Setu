@@ -16,6 +16,8 @@ const { meView } = require("../services/views");
 const ApiError = require("../utils/ApiError");
 const H = require("../utils/helpers");
 
+const suspended = () => new ApiError(403, "ACCOUNT_SUSPENDED", "This account has been suspended. Please contact Sambandh Setu support.");
+
 const session = async (user) => {
     const profile = Users.expandProfile(await Users.getProfile(user.id));
     const settings = await Settings.getSettings(user.id);
@@ -76,6 +78,7 @@ const login = async (req, res) => {
         : await Users.findByPhone(H.indianPhone(identifier, "identifier"));
     const valid = user && user.status !== "deleted" && await Users.checkPassword(user, pass);
     if (!valid) throw ApiError.unauthorized("Incorrect email, mobile number or password");
+    if (user.status === "suspended") throw suspended();
     let current = user;
     if (user.status === "deactivated") current = await Users.updateUser(user.id, { status: "active" });
     H.ok(res, { ...(await session(current)), reactivated: user.status === "deactivated" });
@@ -98,6 +101,7 @@ const loginWithCode = async (req, res) => {
     const user = await Users.findByEmail(email);
     if (!user || user.status === "deleted") throw new ApiError(400, "INVALID_OTP", "The code is incorrect or has expired");
     await consumeOtp({ subject: user.id, purpose: "login", code: String(req.body?.code || "") });
+    if (user.status === "suspended") throw suspended();
     const updated = await Users.updateUser(user.id, { email_verified: 1, status: user.status === "deactivated" ? "active" : user.status });
     H.ok(res, await session(updated));
 };
@@ -120,6 +124,7 @@ const resetPassword = async (req, res) => {
     const user = await Users.findByEmail(email);
     if (!user || user.status === "deleted") throw new ApiError(400, "INVALID_OTP", "The code is incorrect or has expired");
     await consumeOtp({ subject: user.id, purpose: "reset", code: String(req.body?.code || "") });
+    if (user.status === "suspended") throw suspended();
     const updated = await Users.updateUser(user.id, {
         password_hash: await Users.hashPassword(newPassword),
         token_version: Number(user.token_version || 0) + 1,

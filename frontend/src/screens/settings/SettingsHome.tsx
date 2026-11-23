@@ -58,6 +58,11 @@ export function SettingsMenu({ active, compact, query = '' }: { active?: string;
           </Group>
         );
       })}
+      {user && user.role !== 'member' ? (
+        <Group label="Team" style={compact ? { marginBottom: space.lg } : undefined}>
+          <ListRow icon="shield-half-outline" tint="purple" title="Team console" subtitle={compact ? undefined : 'Reviews, members, roles, live features, recommendations'} onPress={() => nav.navigate('Admin')} last />
+        </Group>
+      ) : null}
       <Group>
         <ListRow icon="log-out-outline" title="Log Out" subtitle={compact ? undefined : 'Safely log out of your current session'} danger onPress={() => nav.navigate('Logout')} last />
       </Group>

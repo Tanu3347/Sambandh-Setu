@@ -38,6 +38,6 @@ Review of the previous version (commit `61f2343`) and what changed. Each item be
 
 - Sessions carry a version number: changing or resetting the password and "log out of all devices" revoke older sessions.
 - The crisis reply includes Indian helplines (112, Tele-MANAS 14416, Women Helpline 181) and detects some Hindi phrases.
-- Team review endpoints (`/api/admin/*`) are disabled unless `ADMIN_API_KEY` is set, compare the key in constant time and write every decision to an audit table.
+- Team console endpoints (`/api/admin/*`) are permission-based: every route names the permission it needs and the account's role must include it. Members get a 404, so the console is not discoverable. Nobody can grant permissions they do not hold, change their own role, or remove or suspend the last super admin. The setup key (`ADMIN_API_KEY`) is compared in constant time, claims are rate limited, and every action, including opening a member's account or a document, is written to an audit log with the person who did it. The console never exposes chats or Reflect answers.
 - The landing page no longer shows invented statistics or a testimonial.
 - `frontend/.env` (committed) and the Expo cache folder were removed from the repository.

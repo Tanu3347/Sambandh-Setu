@@ -23,7 +23,7 @@ const createUser = async ({ email, displayName, phone = null, passwordHash = nul
 };
 
 const USER_COLUMNS = new Set(["email", "phone", "display_name", "password_hash", "email_verified", "phone_verified",
-    "onboarding_completed", "status", "token_version", "last_active_at"]);
+    "onboarding_completed", "status", "token_version", "last_active_at", "role"]);
 
 const updateUser = async (id, fields) => {
     const keys = Object.keys(fields).filter((k) => USER_COLUMNS.has(k));

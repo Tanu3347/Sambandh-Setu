@@ -7,6 +7,7 @@ import { AuthLayout } from '../../layout/AuthLayout';
 import { colors, fonts, radius, space } from '../../theme';
 import { Button, CheckRow, Divider, InfoNote, OtpInput, PasswordField, PhoneField, TextField, TextLink } from '../../ui';
 import { useLayout } from '../../hooks/useLayout';
+import { useLive } from '../../context/LiveContext';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -124,6 +125,7 @@ const RULES = [
 
 export function SignUp({ navigation }: any) {
   const { startSession, config } = useAuth();
+  const signupsOn = useLive().on('signups');
   const [f, setF] = useState({ fullName: '', email: '', phone: '', password: '', confirm: '' });
   const [terms, setTerms] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -170,6 +172,7 @@ export function SignUp({ navigation }: any) {
       onBack={navigation.canGoBack() ? () => navigation.goBack() : undefined}
     >
       <CardTitle title="Create your account" subtitle="Take the first step towards a more meaningful journey." />
+      {!signupsOn ? <InfoNote tone="amber" icon="pause-circle" title="New sign-ups are paused" text="We are not accepting new accounts for a short while. Please check back soon. Existing members can log in as usual." style={{ marginBottom: space.lg }} /> : null}
       <TextField label="Full name" required value={f.fullName} onChangeText={set('fullName')} placeholder="Enter your name" autoComplete="name" textContentType="name" error={errors.fullName} />
       <TextField label="Email address" required value={f.email} onChangeText={set('email')} placeholder="you@example.com" autoCapitalize="none" keyboardType="email-address" autoComplete="email" textContentType="emailAddress" error={errors.email} />
       <PhoneField label="Mobile number" optional value={f.phone} onChangeText={set('phone')} error={errors.phone} helper="Saved to your account. Mobile sign-in is not available yet." />
@@ -195,7 +198,7 @@ export function SignUp({ navigation }: any) {
       </Pressable>
       {errors.terms ? <Text style={styles.err}>{errors.terms}</Text> : null}
       {error ? <InfoNote tone="red" icon="alert-circle" text={error} style={{ marginBottom: space.lg }} /> : null}
-      <Button title={config.emailCodes ? 'Continue to verification' : 'Create account'} arrow onPress={submit} loading={busy} />
+      <Button title={config.emailCodes ? 'Continue to verification' : 'Create account'} arrow onPress={submit} loading={busy} disabled={!signupsOn} />
       <OrDivider />
       <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
         <Text style={styles.muted}>Already have an account? </Text>

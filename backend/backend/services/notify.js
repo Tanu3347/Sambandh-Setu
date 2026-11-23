@@ -13,7 +13,9 @@ const CATEGORY = {
     family_accepted: "family",
     family_declined: "family",
     verification_update: "safety",
-    report_received: "safety"
+    report_received: "safety",
+    report_reviewed: "safety",
+    support_reply: "safety"
 };
 
 /** Creates an in-app notification if the recipient allows that category. Never throws. */

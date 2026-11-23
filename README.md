@@ -37,8 +37,9 @@ echo "EXPO_PUBLIC_API_URL=http://localhost:5000/api" > .env
 npm run web                   # or: npm run android / npm run ios
 ```
 
-Tests: `cd backend/backend && npm test` (node:test, in-memory SQLite, 30 tests including the
-security fixes below). Type check: `cd frontend && npm run typecheck`.
+Tests: `cd backend/backend && npm test` (node:test, in-memory SQLite, 39 tests including the
+security fixes, roles, live features, realtime and recommendations). Type check:
+`cd frontend && npm run typecheck`.
 
 ## Deploy (Vercel)
 
@@ -54,11 +55,41 @@ Environment variables (Project Settings > Environment Variables):
 | `APP_URL` | yes | Public site URL, used in family invitation links. |
 | `EMAIL_PROVIDER`, `EMAIL_API_KEY`, `EMAIL_FROM` | optional | `brevo`. Turns on email verification, sign-in by code, password reset and email change. Without it, sign-up works with a password and those features say they are unavailable. |
 | `GUIDE_SERVICE_URL`, `GUIDE_SERVICE_KEY` | optional | The Python Setu Guide service and its shared key. |
-| `ADMIN_API_KEY` | optional | 24+ characters. Enables `/api/admin/*` for reviewing verifications, reports and support tickets. |
+| `ADMIN_API_KEY` | optional | 24+ characters. Setup key for the team console: sign in, open `/admin`, enter the key once and that account becomes super admin. Scripts can also send it as the `X-Admin-Key` header. |
 
 Pushes to `main` deploy automatically once the repository is connected to the Vercel project
 (Project Settings > Git), or through `.github/workflows/vercel.yml` when the `VERCEL_TOKEN`,
 `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` repository secrets are set.
+
+## Team console
+
+`/admin` (also under Settings > Team for staff). What each person sees depends on their role, and the
+API checks the same permission on every request.
+
+- **Roles and access.** Built-in roles: Member, Support, Verifier, Moderator, Analyst, Admin and
+  Super admin, plus custom roles with any of the 12 permissions (overview, analytics, verifications,
+  reports, support requests, member search, suspensions, role assignment, live features,
+  recommendations, roles, audit log). Nobody can grant a permission they do not hold, change their own
+  role, or remove or suspend the last super admin. Suspending someone signs them out everywhere.
+- **Live features.** Sign-ups, Discover, Chat, Reflect, Setu Guide, Family Access, verification
+  uploads, photo uploads and live updates can be switched off, rolled out to a share of members
+  (the same members stay in as the share grows) or limited to roles. Maintenance mode makes the app
+  read-only for members; the announcement banner shows a message to everyone. Changes reach open apps
+  within seconds and the API enforces them immediately. Switching a feature off never deletes data.
+- **Realtime.** Signed-in web apps keep a Server-Sent Events stream (`/api/realtime/stream`) for
+  unread messages, notifications, requests, feature changes and the banner; phones, or any client
+  when live updates are off, check `/api/realtime/poll` every 15 seconds.
+- **Recommendations.** Discover ranks people by reciprocal fit (both match each other's
+  preferences), shared values and interests, lifestyle, location, relationship intent, language,
+  what the member engaged with before, and what people with similar taste liked. It then adds
+  variety, gives new members a fair chance and spreads attention away from very busy profiles.
+  Members see the reasons ("You both value Honesty"), never scores. The weights can be tuned live,
+  and the console shows shown, opened, interest, skip and acceptance rates.
+- **Queues.** Verifications (documents, approve or send back with a note), reports (screenshots,
+  close, or close and suspend), support requests (reply in-app and close), member search, analytics
+  and a full audit log of who did what to whom.
+
+The console never shows chats or Reflect answers.
 
 ## Design
 

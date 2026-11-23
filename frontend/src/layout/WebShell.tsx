@@ -3,7 +3,7 @@ import { Image, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'r
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts, radius, shadow } from '../theme';
 import { useAuth } from '../context/AuthContext';
-import { Notifications } from '../api';
+import { useLive } from '../context/LiveContext';
 import { Avatar, Logo } from '../ui';
 import { go, goTab, useCurrentRoute } from '../navigation/navRef';
 import { greeting } from '../utils/format';
@@ -18,6 +18,7 @@ const NAV = [
 
 /** Which left-nav item is highlighted for each screen. */
 const SECTION: Record<string, string> = {
+  Admin: 'Admin',
   Home: 'Home', Notifications: 'Home',
   Connections: 'Connections', PersonProfile: 'Connections', Journey: 'Connections', Stage: 'Connections', Reflect: 'Connections',
   Guide: 'Guide', GuideChat: 'Guide',
@@ -40,19 +41,12 @@ export function WebShell({ children }: { children: React.ReactNode }) {
 }
 
 function TopBar({ onMenu }: { onMenu: () => void }) {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
+  const { snapshot } = useLive();
   const [q, setQ] = useState('');
-  const [unread, setUnread] = useState(0);
   const [menu, setMenu] = useState(false);
-  const route = useCurrentRoute();
-
-  useEffect(() => {
-    let alive = true;
-    const tick = () => Notifications.unread().then((r) => alive && setUnread(r.unread)).catch(() => {});
-    tick();
-    const t = setInterval(tick, 60000);
-    return () => { alive = false; clearInterval(t); };
-  }, [route]);
+  const unread = snapshot?.notifications.unread || 0;
+  const staff = !!user && user.role !== 'member';
 
   const search = () => goTab('Connections', { tab: 'discover', q: q.trim() || undefined });
 
@@ -84,6 +78,7 @@ function TopBar({ onMenu }: { onMenu: () => void }) {
               { label: 'My Profile', icon: 'person-outline', on: () => goTab('Profile') },
               { label: 'Settings', icon: 'settings-outline', on: () => go('Settings') },
               { label: 'Help & Support', icon: 'help-circle-outline', on: () => go('Help') },
+              ...(staff ? [{ label: 'Team console', icon: 'shield-half-outline', on: () => go('Admin') }] : []),
               { label: 'Log out', icon: 'log-out-outline', on: () => go('Logout') },
             ].map((m) => (
               <Pressable key={m.label} onPress={() => { setMenu(false); m.on(); }} style={({ hovered }: any) => [styles.menuItem, hovered && { backgroundColor: colors.bg }]} accessibilityRole="menuitem">
@@ -101,6 +96,10 @@ function TopBar({ onMenu }: { onMenu: () => void }) {
 
 function SideNav({ collapsed }: { collapsed: boolean }) {
   const route = useCurrentRoute();
+  const { user } = useAuth();
+  const { snapshot } = useLive();
+  const staff = !!user && user.role !== 'member';
+  const badge: Record<string, number> = { Chats: snapshot?.messages.unread || 0, Connections: snapshot?.requests.pending || 0 };
   const section = SECTION[route] || (route && route !== 'Main' ? 'Profile' : 'Home');
   return (
     <View style={[styles.side, collapsed && { width: 76 }]} accessibilityRole="navigation">
@@ -112,9 +111,17 @@ function SideNav({ collapsed }: { collapsed: boolean }) {
               style={({ hovered }: any) => [styles.navItem, on && styles.navOn, hovered && !on && { backgroundColor: colors.primarySoft }, collapsed && { justifyContent: 'center', paddingHorizontal: 0 }]}>
               <Ionicons name={(on ? n.active : n.icon) as any} size={n.key === 'Guide' ? 24 : 21} color={on ? '#fff' : n.key === 'Guide' ? colors.primary : colors.text} />
               {!collapsed ? <Text style={[styles.navText, on && { color: '#fff' }]}>{n.label}</Text> : null}
+              {badge[n.key] ? <View style={[styles.count, on && { backgroundColor: '#fff' }]}><Text style={[styles.countText, on && { color: colors.primary }]}>{badge[n.key] > 99 ? '99+' : badge[n.key]}</Text></View> : null}
             </Pressable>
           );
         })}
+        {staff ? (
+          <Pressable onPress={() => go('Admin')} accessibilityRole="link" accessibilityLabel="Team console" accessibilityState={{ selected: route === 'Admin' }}
+            style={({ hovered }: any) => [styles.navItem, { marginTop: 12, borderTopWidth: 1, borderTopColor: colors.border, borderRadius: 0 }, route === 'Admin' && styles.navOn, hovered && route !== 'Admin' && { backgroundColor: colors.primarySoft }, collapsed && { justifyContent: 'center', paddingHorizontal: 0 }]}>
+            <Ionicons name="shield-half-outline" size={21} color={route === 'Admin' ? '#fff' : colors.text} />
+            {!collapsed ? <Text style={[styles.navText, route === 'Admin' && { color: '#fff' }]}>Team console</Text> : null}
+          </Pressable>
+        ) : null}
       </View>
       <View style={{ flex: 1 }} />
       {!collapsed ? (
@@ -146,7 +153,9 @@ const styles = StyleSheet.create({
   side: { width: 236, backgroundColor: '#fff', borderRightWidth: 1, borderRightColor: colors.border, paddingHorizontal: 16, paddingVertical: 20 },
   navItem: { flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 48, paddingHorizontal: 16, borderRadius: radius.input },
   navOn: { backgroundColor: colors.primary },
-  navText: { fontFamily: fonts.medium, fontSize: 15, color: colors.text },
+  navText: { fontFamily: fonts.medium, fontSize: 15, color: colors.text, flex: 1 },
+  count: { minWidth: 22, height: 22, borderRadius: 11, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  countText: { fontFamily: fonts.bold, fontSize: 11, color: '#fff' },
   ask: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 40, paddingLeft: 18, paddingRight: 6, height: 54, borderWidth: 1, borderColor: colors.border, ...shadow.elevated },
   askText: { fontFamily: fonts.bold, fontSize: 14, color: colors.navy, marginRight: 10 },
   askIcon: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },

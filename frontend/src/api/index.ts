@@ -38,6 +38,7 @@ export type Me = {
   phoneVerified: boolean;
   onboardingCompleted: boolean;
   status: string;
+  role: string;
   hasPassword: boolean;
   createdAt: string;
   photoUrl: string | null;
@@ -72,6 +73,8 @@ export type Person = {
   verified: boolean;
   online: boolean;
   bookmarked: boolean;
+  /** Why the recommender suggested this person (Discover only). */
+  reasons?: string[];
 };
 
 export type PersonProfile = Person & {
@@ -266,4 +269,66 @@ export const Guide = {
   conversation: (id: string) => api.get<{ id: string; title: string; topic: string; createdAt: string; messages: { id: string; role: 'user' | 'guide'; text: string; title?: string; questions?: string[]; at: string }[] }>(`/guide/conversations/${id}`),
   deleteConversation: (id: string) => api.del(`/guide/conversations/${id}`),
   clearAll: () => api.del('/guide/conversations'),
+};
+
+// ---------- Live features & realtime ----------
+
+export type FeatureKey = 'signups' | 'discover' | 'chat' | 'reflect' | 'setu_guide' | 'family_access' | 'verification' | 'photo_uploads' | 'realtime_stream' | 'maintenance' | 'announcement';
+export type FeatureState = {
+  features: Record<FeatureKey, boolean>;
+  announcement: { text: string; tone: 'info' | 'success' | 'warning' } | null;
+  maintenance: { message: string } | null;
+  version: string;
+};
+export type RealtimeSnapshot = {
+  notifications: { unread: number; latest: string | null };
+  messages: { unread: number; latest: string | null };
+  requests: { pending: number };
+  features: { version: string };
+  announcement: FeatureState['announcement'];
+  maintenance: FeatureState['maintenance'];
+  at: string;
+  transport: 'stream' | 'poll';
+};
+
+export const FeaturesApi = {
+  get: () => api.get<FeatureState>('/features'),
+  poll: () => api.get<RealtimeSnapshot>('/realtime/poll'),
+};
+
+// ---------- Team console ----------
+
+export type AdminMe = { role: string; roleName: string; permissions: string[]; via: string };
+export type AdminRole = { key: string; name: string; description: string; builtIn: boolean; locked: boolean; permissions: string[]; members: number; grantable: boolean };
+export type AdminFeature = { key: FeatureKey; name: string; group: string; description: string; configFields: string[]; enabled: boolean; rollout: number; roles: string[]; config: Record<string, string>; updatedAt: string | null };
+export type AdminMember = { id: string; name: string; email: string; status: string; role: string; age: number | null; location: string; profession: string; onboardingCompleted: boolean; emailVerified: boolean; verified: boolean; createdAt: string; lastActiveAt: string | null };
+export type RecMetrics = { days: number; counts: Record<string, number>; rates: { viewRate: number | null; interestRate: number | null; skipRate: number | null; acceptanceRate: number | null } };
+
+export const AdminApi = {
+  me: () => api.get<AdminMe>('/admin/me'),
+  claim: (key: string) => api.post<{ role: string }>('/admin/claim', { key }),
+  overview: () => api.get<any>('/admin/overview'),
+  analytics: (days = 14) => api.get<{ days: number; rows: { day: string; signups: number; requests: number; accepted: number; messages: number; impressions: number }[]; recommendations: RecMetrics }>(`/admin/analytics?days=${days}`),
+  verifications: (status = 'in_review') => api.get<{ items: any[] }>(`/admin/verifications?status=${status}`),
+  verificationDocs: (id: string) => api.get<{ docs: string[] }>(`/admin/verifications/${id}/docs`),
+  decideVerification: (id: string, status: 'verified' | 'needs_action', note?: string) => api.post(`/admin/verifications/${id}/decision`, { status, note }),
+  reports: (status = 'open') => api.get<{ items: any[] }>(`/admin/reports?status=${status}`),
+  reportImages: (id: string) => api.get<{ images: string[] }>(`/admin/reports/${id}/images`),
+  closeReport: (id: string, action: 'none' | 'suspend', note?: string) => api.post(`/admin/reports/${id}/close`, { action, note }),
+  tickets: (status = 'open') => api.get<{ items: any[] }>(`/admin/tickets?status=${status}`),
+  closeTicket: (id: string, reply?: string, note?: string) => api.post(`/admin/tickets/${id}/close`, { reply, note }),
+  members: (q: { q?: string; status?: string; role?: string; page?: number }) => api.get<{ items: AdminMember[]; page: number; total: number; totalPages: number }>(`/admin/members${qs(q)}`),
+  member: (id: string) => api.get<any>(`/admin/members/${id}`),
+  suspend: (id: string, note?: string) => api.post(`/admin/members/${id}/suspend`, { note }),
+  reactivate: (id: string) => api.post(`/admin/members/${id}/reactivate`),
+  setRole: (id: string, role: string) => api.post(`/admin/members/${id}/role`, { role }),
+  roles: () => api.get<{ roles: AdminRole[]; permissions: { key: string; label: string }[] }>('/admin/roles'),
+  createRole: (b: { key: string; name: string; description?: string; permissions: string[] }) => api.post<AdminRole>('/admin/roles', b),
+  updateRole: (key: string, b: { name?: string; description?: string; permissions?: string[] }) => api.patch<AdminRole>(`/admin/roles/${key}`, b),
+  deleteRole: (key: string) => api.del(`/admin/roles/${key}`),
+  features: () => api.get<{ features: AdminFeature[]; roles: { key: string; name: string }[] }>('/admin/features'),
+  updateFeature: (key: string, b: Partial<Pick<AdminFeature, 'enabled' | 'rollout' | 'roles' | 'config'>>) => api.patch<AdminFeature>(`/admin/features/${key}`, b),
+  recommender: () => api.get<{ weights: Record<string, number>; tuning: Record<string, number>; defaults: { weights: Record<string, number>; tuning: Record<string, number> }; labels: Record<string, string>; metrics: RecMetrics }>('/admin/recommendations'),
+  updateRecommender: (b: { weights?: Record<string, number>; tuning?: Record<string, number>; reset?: boolean }) => api.patch('/admin/recommendations', b),
+  audit: () => api.get<{ items: { id: string; action: string; refId: string | null; target: string | null; note: string; actor: string; createdAt: string }[] }>('/admin/audit'),
 };

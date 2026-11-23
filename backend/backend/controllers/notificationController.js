@@ -15,6 +15,8 @@ const TEXT = {
     connection_resumed: (n) => ({ title: `${n} resumed your connection`, body: "You can continue your journey together.", target: "connection" }),
     family_accepted: (n, p) => ({ title: `Your ${String(p.relationship || "family member").toLowerCase()} accepted your invitation`, body: "They can now view the information you selected.", target: "family" }),
     family_declined: (n, p) => ({ title: `Your ${String(p.relationship || "family member").toLowerCase()} declined the invitation`, body: "You can invite them again later.", target: "family" }),
+    report_reviewed: () => ({ title: "Your report has been reviewed", body: "Thank you for helping keep Sambandh Setu safe. Our team has taken appropriate action.", target: "safety" }),
+    support_reply: (n, p) => ({ title: `Support update on ${p.reference || "your request"}`, body: p.reply || "Your support request has been resolved.", target: "support" }),
     verification_update: (n, p) => ({ title: p.status === "verified" ? "Your verification is complete" : "Your verification needs attention", body: p.status === "verified" ? "A verified badge now shows on your profile." : "Open Verification to see what to do next.", target: "verification" })
 };
 const stageTitle = (key) => J.STAGES.find((s) => s.key === key)?.title || "next";

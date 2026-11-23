@@ -5,6 +5,7 @@ import { Home as HomeApi, HomeData } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { useLoad } from '../../hooks/useAsync';
 import { useLayout } from '../../hooks/useLayout';
+import { useLive, useLiveRefresh } from '../../context/LiveContext';
 import { colors, fonts, radius, shadow, space } from '../../theme';
 import { Avatar, Button, Card, EmptyState, ErrorState, IconButton, JourneyStepper, Screen, SectionTitle, Skeleton, StatePill, TextLink } from '../../ui';
 import { greeting, nameAge } from '../../utils/format';
@@ -32,6 +33,8 @@ export default function Home({ navigation }: any) {
   const { user } = useAuth();
   const { wide } = useLayout();
   const { data, error, loading, refreshing, refresh, reload } = useLoad(() => HomeApi.get());
+  const { snapshot } = useLive();
+  useLiveRefresh((s) => [s.requests.pending, s.messages.unread, s.notifications.latest], reload);
   const first = data?.firstName || user?.firstName || '';
 
   const openAttention = (a: HomeData['attention'][number]) => {
@@ -56,7 +59,7 @@ export default function Home({ navigation }: any) {
         <Text style={styles.greet} accessibilityRole="header">{greeting()}, <Text style={{ color: colors.primary }}>{first}</Text></Text>
         <Text style={styles.greetSub}>Wishing you meaningful conversations and new possibilities today.</Text>
       </View>
-      <IconButton icon="notifications-outline" label="Notifications" onPress={() => navigation.navigate('Notifications')} />
+      <IconButton icon="notifications-outline" label={snapshot?.notifications.unread ? `Notifications, ${snapshot.notifications.unread} unread` : 'Notifications'} badge={!!snapshot?.notifications.unread} onPress={() => navigation.navigate('Notifications')} />
       <Pressable onPress={() => navigation.navigate('Profile')} accessibilityRole="button" accessibilityLabel="My profile"><Avatar uri={user?.photoUrl} name={user?.name} size={40} /></Pressable>
     </View>
   );

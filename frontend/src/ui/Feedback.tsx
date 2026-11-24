@@ -131,9 +131,16 @@ export function StepBar({ step, total }: { step: number; total: number }) {
 
 /** Success illustration: check in a soft circle with confetti dots. */
 export function SuccessMark({ tone = 'green', icon = 'checkmark', size = 120 }: { tone?: 'green' | 'blue' | 'red' | 'amber'; icon?: IconName; size?: number }) {
-  const fg = { green: '#16A36A', blue: colors.primary, red: colors.dangerStrong, amber: '#C98A12' }[tone];
-  const bg = { green: '#DDF5EA', blue: '#E1EBFC', red: '#FCE3E3', amber: '#FBEFD5' }[tone];
-  const dots = [[-8, 20, '#F59E0B'], [size + 2, 30, '#2C67C5'], [10, size - 4, '#EC4899'], [size - 10, size + 2, '#10B981'], [size / 2, -14, '#2C67C5'], [-14, size / 2 + 10, '#8B5CF6']] as const;
+  const fg = { green: colors.success, blue: colors.primary, red: colors.dangerStrong, amber: colors.warning }[tone];
+  const bg = { green: colors.successSoft, blue: colors.primarySoft, red: colors.dangerSoft, amber: colors.warningSoft }[tone];
+  const dots = [
+  [-8, 20, colors.warning],
+  [size + 2, 30, colors.primary],
+  [10, size - 4, colors.primarySoft],
+  [size - 10, size + 2, colors.success],
+  [size / 2, -14, colors.primary],
+  [-14, size / 2 + 10, colors.textSoft],
+] as const;
   return (
     <View style={{ width: size, height: size, alignSelf: 'center', marginVertical: space.xl }}>
       {dots.map(([x, y, c], i) => <View key={i} style={{ position: 'absolute', left: x, top: y, width: 7, height: 7, borderRadius: i % 2 ? 2 : 4, backgroundColor: c, transform: [{ rotate: `${i * 25}deg` }] }} />)}

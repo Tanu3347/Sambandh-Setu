@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Connections, Journey as JourneyT, errorMessage } from '../../api';
@@ -103,7 +103,7 @@ export function Journey({ route, navigation }: any) {
             <Avatar uri={j.connection.person.photoUrl} name={name} size={56} online={j.connection.person.online} />
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><Text style={styles.name}>{nameAge(j.connection.person)}</Text>{j.connection.person.verified ? <VerifiedTick size={15} /> : null}</View>
-              <Text style={styles.small}>{[j.connection.person.profession, j.connection.person.location].filter(Boolean).join(' · ')}</Text>
+              <Text style={styles.small}>{[j.connection.person.profession, j.connection.person.location].filter(Boolean).join(' Â· ')}</Text>
               <View style={{ marginTop: 4 }}><StatusDot status={j.connection.status === 'active' ? 'connected' : 'pending'} label={j.connection.status === 'active' ? 'Connected' : j.connection.status === 'paused' ? 'Paused' : 'Closed'} /></View>
             </View>
             {menu}
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
   body: { fontFamily: fonts.regular, fontSize: 13.5, lineHeight: 20, color: colors.muted },
   small: { fontFamily: fonts.regular, fontSize: 12.5, color: colors.muted },
   name: { fontFamily: fonts.semibold, fontSize: 16, color: colors.text },
-  banner: { flexDirection: 'row', backgroundColor: '#E6EEFB', borderRadius: radius.lg, overflow: 'hidden', borderWidth: 1, borderColor: colors.primaryLine },
+  banner: { flexDirection: 'row', backgroundColor: 'colors.bgTint', borderRadius: radius.lg, overflow: 'hidden', borderWidth: 1, borderColor: colors.primaryLine },
   bannerT: { fontFamily: fonts.bold, fontSize: 17, lineHeight: 24, color: colors.text },
   note: { flexDirection: 'row', gap: 10, alignItems: 'center', backgroundColor: colors.primarySoft, borderRadius: radius.card, padding: 14 },
   ring: { width: 56, height: 56, borderRadius: 28, borderWidth: 4, borderColor: colors.primary, alignItems: 'center', justifyContent: 'center' },

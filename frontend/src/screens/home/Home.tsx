@@ -67,7 +67,7 @@ export default function Home({ navigation }: any) {
   const rail = (
     <>
       <Card>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}><Ionicons name="heart" size={20} color="#E5484D" /><Text style={styles.cardH}>Your Preferences</Text></View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}><Ionicons name="heart" size={20} color={colors.primary} /><Text style={styles.cardH}>Your Preferences</Text></View>
         <Text style={styles.body}>{data?.hasPreferences ? summary(user) : 'Tell us what you are looking for so we can suggest more relevant people.'}</Text>
         <Button title={data?.hasPreferences ? 'Edit Preferences' : 'Set Preferences'} variant="outline" size="sm" onPress={() => navigation.navigate('PreferencesReview')} style={{ marginTop: space.md }} />
       </Card>
@@ -195,10 +195,10 @@ function GuideCard({ onPress }: { onPress: () => void }) {
 }
 
 const styles = StyleSheet.create({
-  mobileHead: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: space.xl, backgroundColor: '#EAF2FE', marginHorizontal: -16, marginTop: -16, padding: 16, paddingTop: 20, borderBottomLeftRadius: 20, borderBottomRightRadius: 20 },
+  mobileHead: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: space.xl, backgroundColor: colors.bgTint, marginHorizontal: -16, marginTop: -16, padding: 16, paddingTop: 20, borderBottomLeftRadius: 20, borderBottomRightRadius: 20 },
   greet: { fontFamily: fonts.display, fontSize: 24, color: colors.text },
   greetSub: { fontFamily: fonts.regular, fontSize: 12.5, color: colors.muted, marginTop: 4 },
-  banner: { flexDirection: 'row', backgroundColor: '#DCEAFB', borderRadius: 20, overflow: 'hidden', marginBottom: space.xl, minHeight: 220 },
+  banner: { flexDirection: 'row', backgroundColor: colors.bgTint, borderRadius: 20, overflow: 'hidden', marginBottom: space.xl, minHeight: 220 },
   bannerTitle: { fontFamily: fonts.bold, fontSize: 34, lineHeight: 42, color: colors.text },
   bannerSub: { fontFamily: fonts.regular, fontSize: 16, color: colors.textSoft, marginTop: 10 },
   name: { fontFamily: fonts.bold, fontSize: 19, color: colors.text },

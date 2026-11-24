@@ -141,7 +141,7 @@ function SideNav({ collapsed }: { collapsed: boolean }) {
 const styles = StyleSheet.create({
   top: { height: 72, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: colors.border, zIndex: 20 },
   iconBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  search: { width: 520, maxWidth: '38%' as any, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#F1F4F9', borderRadius: radius.input, paddingHorizontal: 14, height: 42 },
+  search: { width: 520, maxWidth: '38%' as any, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.bgTint, borderRadius: radius.input, paddingHorizontal: 14, height: 42 },
   searchInput: { flex: 1, fontFamily: fonts.regular, fontSize: 14, color: colors.text, height: 40 },
   dot: { position: 'absolute', top: 9, right: 11, width: 9, height: 9, borderRadius: 5, backgroundColor: colors.dangerStrong, borderWidth: 1.5, borderColor: '#fff' },
   me: { flexDirection: 'row', alignItems: 'center', marginLeft: 12, paddingHorizontal: 6, minHeight: 44 },

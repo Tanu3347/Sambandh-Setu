@@ -66,7 +66,7 @@ export function AuthLayout({ eyebrow, heading, highlight, intro, points, steps, 
     );
   }
   return (
-    <View style={{ flex: 1, backgroundColor: '#EEF3FB' }}>
+    <View style={{ flex: 1, backgroundColor: colors.bgTint }}>
       <MarketingHeader />
       <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
         <View style={styles.split}>
@@ -135,20 +135,20 @@ const styles = StyleSheet.create({
   linkOn: { borderBottomColor: colors.primary },
   linkText: { fontFamily: fonts.medium, fontSize: 15, color: colors.textSoft },
   split: { flex: 1, flexDirection: 'row', minHeight: 720 },
-  panel: { flex: 1.15, overflow: 'hidden', backgroundColor: '#DCE9F8' },
-  sky: { ...StyleSheet.absoluteFill, backgroundColor: '#E4EEFA' },
+  panel: { flex: 1.15, overflow: 'hidden', backgroundColor: colors.primarySoft },
+  sky: { ...StyleSheet.absoluteFill, backgroundColor: colors.bgTint },
   scene: { position: 'absolute', left: 0, right: 0, bottom: 0, width: '100%' as any, aspectRatio: 1.4 },
   panelText: { padding: 48, paddingTop: 56, maxWidth: 640 },
   backPill: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', backgroundColor: '#fff', borderRadius: radius.pill, paddingHorizontal: 14, height: 34, marginBottom: 24, borderWidth: 1, borderColor: colors.primaryLine },
   backText: { fontFamily: fonts.medium, fontSize: 13, color: colors.primary },
   eyebrow: { fontFamily: fonts.semibold, fontSize: 12.5, letterSpacing: 0.8, color: colors.textSoft, marginBottom: 12 },
   heading: { fontFamily: fonts.bold, fontSize: 46, lineHeight: 54, color: colors.text, letterSpacing: -0.5 },
-  highlight: { color: colors.primary, textDecorationLine: 'underline', textDecorationColor: '#9DBBEA' },
+  highlight: { color: colors.primary, textDecorationLine: 'underline', textDecorationColor: colors.primaryLine },
   intro: { fontFamily: fonts.regular, fontSize: 17, lineHeight: 27, color: colors.textSoft, marginTop: 18, maxWidth: 540 },
   pointIcon: { width: 46, height: 46, borderRadius: 23, backgroundColor: 'rgba(255,255,255,0.85)', alignItems: 'center', justifyContent: 'center' },
   pointTitle: { fontFamily: fonts.semibold, fontSize: 15.5, color: colors.text },
   pointText: { fontFamily: fonts.regular, fontSize: 13.5, color: colors.textSoft, marginTop: 1 },
-  stepNum: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.9)', borderWidth: 1.5, borderColor: '#D6E2F3', alignItems: 'center', justifyContent: 'center' },
+  stepNum: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.9)', borderWidth: 1.5, borderColor: colors.primaryLine, alignItems: 'center', justifyContent: 'center' },
   stepNumText: { fontFamily: fonts.semibold, fontSize: 14, color: colors.text },
   formSide: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
   card: { width: '100%' as any, backgroundColor: '#fff', borderRadius: 18, padding: 34, ...shadow.elevated },

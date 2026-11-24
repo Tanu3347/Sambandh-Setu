@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { NotificationItem, Notifications as Api } from '../../api';
@@ -44,7 +44,7 @@ export default function Notifications({ navigation }: any) {
             const [icon, tint] = ICON[n.type] || ['notifications-outline', 'blue'];
             return (
               <Pressable key={n.id} onPress={() => open(n)} accessibilityRole="button" accessibilityLabel={`${n.read ? '' : 'Unread. '}${n.title}. ${n.body}`}
-                style={({ hovered }: any) => [styles.row, i > 0 && styles.border, !n.read && { backgroundColor: '#F5F9FF' }, hovered && { backgroundColor: colors.bg }]}>
+                style={({ hovered }: any) => [styles.row, i > 0 && styles.border, !n.read && { backgroundColor: 'colors.bgTint' }, hovered && { backgroundColor: colors.bg }]}>
                 <View style={[styles.icon, { backgroundColor: colors.tint[tint].bg }]}><Ionicons name={icon} size={19} color={colors.tint[tint].fg} /></View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.title, !n.read && { fontFamily: fonts.bold }]}>{n.title}</Text>

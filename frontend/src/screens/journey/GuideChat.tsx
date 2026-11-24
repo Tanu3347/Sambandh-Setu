@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+﻿import React, { useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
@@ -119,17 +119,17 @@ export default function GuideChat({ route, navigation }: any) {
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}><Ionicons name="book-outline" size={16} color={colors.primary} /><Text style={styles.h}>{m.reply.title || 'Questions you can explore'}</Text></View>
                     {(expanded[m.id] ? m.reply.questions : m.reply.questions.slice(0, 5)).map((q) => (
                       <View key={q} style={styles.qRow}>
-                        <Text style={styles.bullet}>•</Text><Text style={[styles.guideText, { flex: 1 }]}>{q}</Text>
+                        <Text style={styles.bullet}>â€¢</Text><Text style={[styles.guideText, { flex: 1 }]}>{q}</Text>
                         <Pressable onPress={() => copy(q)} accessibilityRole="button" accessibilityLabel="Copy question" hitSlop={8}><Ionicons name="copy-outline" size={16} color={colors.faint} /></Pressable>
                       </View>
                     ))}
-                    <Pressable onPress={() => send(undefined, 'conversation_ideas')} style={{ alignSelf: 'center', marginTop: 6 }} accessibilityRole="button"><Text style={styles.link}>Show more questions →</Text></Pressable>
+                    <Pressable onPress={() => send(undefined, 'conversation_ideas')} style={{ alignSelf: 'center', marginTop: 6 }} accessibilityRole="button"><Text style={styles.link}>Show more questions â†’</Text></Pressable>
                   </View>
                 ) : null}
               </View>
             </View>
           ))}
-          {busy ? <View style={{ flexDirection: 'row', gap: 8 }}><View style={styles.bot}><Ionicons name="happy-outline" size={16} color={colors.primary} /></View><View style={styles.guideBubble}><Text style={styles.time}>Setu Guide is thinking…</Text></View></View> : null}
+          {busy ? <View style={{ flexDirection: 'row', gap: 8 }}><View style={styles.bot}><Ionicons name="happy-outline" size={16} color={colors.primary} /></View><View style={styles.guideBubble}><Text style={styles.time}>Setu Guide is thinkingâ€¦</Text></View></View> : null}
         </ScrollView>
         {composer}
       </View>
@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
   time: { fontFamily: fonts.regular, fontSize: 11, color: colors.faint, marginTop: 4, alignSelf: 'flex-end' },
   userBubble: { alignSelf: 'flex-end', maxWidth: '82%' as any, backgroundColor: colors.primary, borderRadius: 14, borderTopRightRadius: 4, padding: 12 },
   userText: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 21, color: '#fff' },
-  userTime: { fontFamily: fonts.regular, fontSize: 11, color: '#DCE7FB', marginTop: 4, alignSelf: 'flex-end' },
+  userTime: { fontFamily: fonts.regular, fontSize: 11, color: 'colors.surface', marginTop: 4, alignSelf: 'flex-end' },
   helpCard: { backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: colors.border, padding: 14 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, paddingHorizontal: 10, minHeight: 38, backgroundColor: colors.bgTint, flexGrow: 1, flexBasis: '45%' as any },

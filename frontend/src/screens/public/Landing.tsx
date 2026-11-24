@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+﻿import React, { useRef } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -37,7 +37,7 @@ function Welcome({ navigation }: any) {
             <View style={styles.markCircle}><LogoMark size={30} /></View>
             <View>
               <Text style={styles.serifBrand}>Sambandh Setu</Text>
-              <Text style={styles.brandSub}>PEOPLE · CONVERSATIONS · POSSIBILITIES</Text>
+              <Text style={styles.brandSub}>PEOPLE Â· CONVERSATIONS Â· POSSIBILITIES</Text>
             </View>
           </View>
           <View style={styles.lang}><Text style={styles.langText}>English</Text></View>
@@ -99,7 +99,7 @@ function WebLanding({ navigation, section }: any) {
                 </View>
               </View>
               <View style={styles.heroArt}>
-                <Image source={require('../../../assets/illustrations/landing-bridge.jpg')} style={{ width: '100%' as any, height: '100%' as any, borderRadius: 18 }} resizeMode="cover" accessibilityLabel="Two people on either side of a bridge: different journeys, a shared tomorrow" />
+                <Image source={require('../../../assets/illustrations/landing-bridge.jpg')} style={{ width: '100%' as any, height: '100%' as any, borderRadius: 18 }} resizeMode="contain" accessibilityLabel="Two people on either side of a bridge: different journeys, a shared tomorrow" />
               </View>
             </View>
             <View style={[styles.featureRow]} onLayout={mark('features')}>
@@ -151,7 +151,7 @@ function WebLanding({ navigation, section }: any) {
                 <View style={{ flex: 1, padding: 16, gap: 10 }}>
                   <Text style={styles.mockH}>Your progress</Text>
                   <View style={{ height: 6, borderRadius: 3, backgroundColor: colors.primarySoft }}><View style={{ width: '45%', height: 6, borderRadius: 3, backgroundColor: colors.primary }} /></View>
-                  <View style={{ flexDirection: 'row', gap: 8 }}>{['Self-Reflect · Done', 'Discover · Active', 'Chat · Next'].map((t) => <View key={t} style={styles.mockChip}><Text style={styles.mockChipText}>{t}</Text></View>)}</View>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>{['Self-Reflect Â· Done', 'Discover Â· Active', 'Chat Â· Next'].map((t) => <View key={t} style={styles.mockChip}><Text style={styles.mockChipText}>{t}</Text></View>)}</View>
                   <Text style={[styles.mockH, { marginTop: 8 }]}>Setu Guide suggests</Text>
                   {['Lifestyle and daily routines', 'Family values', 'Career and personal growth'].map((t) => <View key={t} style={styles.mockRow}><Ionicons name="chatbubble-outline" size={13} color={colors.primary} /><Text style={styles.mockRowText}>{t}</Text></View>)}
                 </View>
@@ -226,7 +226,7 @@ function WebLanding({ navigation, section }: any) {
               <LogoMark size={30} />
               <View>
                 <Text style={{ fontFamily: fonts.semibold, fontSize: 14, color: colors.text }}>Sambandh Setu</Text>
-                <Text style={styles.muted}>© {new Date().getFullYear()} Sambandh Setu. Find with purpose. Connect with trust.</Text>
+                <Text style={styles.muted}>Â© {new Date().getFullYear()} Sambandh Setu. Find with purpose. Connect with trust.</Text>
               </View>
             </View>
             <View style={{ flexDirection: 'row', gap: 24 }}>
@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
   trioIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
   trioText: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted, textAlign: 'center' },
   muted: { fontFamily: fonts.regular, fontSize: 13.5, color: colors.muted },
-  heroBand: { backgroundColor: '#F1F6FE', paddingTop: 56, paddingBottom: 40 },
+  heroBand: { backgroundColor: 'colors.bgTint', paddingTop: 56, paddingBottom: 40 },
   wrap: { width: '100%' as any, maxWidth: 1200, alignSelf: 'center', paddingHorizontal: 32 },
   eyebrow: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start', backgroundColor: '#fff', borderRadius: radius.pill, borderWidth: 1, borderColor: colors.primaryLine, paddingHorizontal: 12, height: 30, marginBottom: 20 },
   eyebrowDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.primary },

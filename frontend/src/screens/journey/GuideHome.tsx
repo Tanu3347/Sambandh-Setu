@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Connections } from '../../api';
@@ -94,7 +94,7 @@ export default function GuideHome({ navigation }: any) {
             <Avatar uri={j.connection.person.photoUrl} name={j.connection.person.name} size={48} online={j.connection.person.online} />
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><Text style={styles.name}>{nameAge(j.connection.person)}</Text>{j.connection.person.verified ? <VerifiedTick size={15} /> : null}</View>
-              <Text style={styles.small}>{[j.connection.person.profession, j.connection.person.location?.split(',')[0]].filter(Boolean).join(' · ')}</Text>
+              <Text style={styles.small}>{[j.connection.person.profession, j.connection.person.location?.split(',')[0]].filter(Boolean).join(' Â· ')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.faint} />
           </Pressable>
@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
   h: { fontFamily: fonts.semibold, fontSize: 16.5, color: colors.text },
   body: { fontFamily: fonts.regular, fontSize: 13.5, lineHeight: 20, color: colors.muted },
   small: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 17, color: colors.muted },
-  banner: { flexDirection: 'row', backgroundColor: '#E3EDFC', borderRadius: 18, overflow: 'hidden', borderWidth: 1, borderColor: colors.primaryLine },
+  banner: { flexDirection: 'row', backgroundColor: 'colors.bgTint', borderRadius: 18, overflow: 'hidden', borderWidth: 1, borderColor: colors.primaryLine },
   bannerT: { fontFamily: fonts.bold, fontSize: 20, lineHeight: 27, color: colors.navy },
   name: { fontFamily: fonts.semibold, fontSize: 15.5, color: colors.text },
   current: { backgroundColor: colors.primarySoft, borderRadius: radius.card, padding: 16, borderWidth: 1, borderColor: colors.primaryLine },

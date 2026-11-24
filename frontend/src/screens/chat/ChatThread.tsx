@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+﻿import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -128,8 +128,8 @@ export function ChatThread({ route, navigation }: any) {
                 <View style={[styles.bubble, m.mine ? styles.mine : styles.theirs]}>
                   <Text style={[styles.msg, m.mine && { color: '#fff' }]}>{m.text}</Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-end', marginTop: 4 }}>
-                    <Text style={[styles.time, m.mine && { color: '#DCE7FB' }]}>{formatTime(m.at)}</Text>
-                    {m.mine ? <Ionicons name={m.id.startsWith('tmp') ? 'time-outline' : m.read ? 'checkmark-done' : 'checkmark'} size={13} color="#DCE7FB" /> : null}
+                    <Text style={[styles.time, m.mine && { color: 'colors.surface' }]}>{formatTime(m.at)}</Text>
+                    {m.mine ? <Ionicons name={m.id.startsWith('tmp') ? 'time-outline' : m.read ? 'checkmark-done' : 'checkmark'} size={13} color="colors.surface" /> : null}
                   </View>
                 </View>
               </View>
@@ -192,10 +192,10 @@ export function ChatProfile({ route, navigation }: any) {
           <Card style={{ alignItems: 'center' }}>
             <Avatar uri={data.person.photoUrl} name={data.person.name} size={96} online={data.person.online} />
             <Txt variant="title" style={{ marginTop: 10 }}>{data.person.name}{data.person.age ? `, ${data.person.age}` : ''}</Txt>
-            <Txt variant="caption">{[data.person.profession, data.person.location?.split(',')[0]].filter(Boolean).join(' · ')}</Txt>
+            <Txt variant="caption">{[data.person.profession, data.person.location?.split(',')[0]].filter(Boolean).join(' Â· ')}</Txt>
             <Pressable onPress={() => navigation.navigate('Journey', { connectionId: data.connectionId })} style={styles.connBox} accessibilityRole="button" accessibilityLabel={`Setu Journey, ${data.stageTitle}`}>
               <Ionicons name="infinite" size={24} color={colors.primary} />
-              <View style={{ flex: 1 }}><Text style={styles.connT}>{data.connectionStatus === 'active' ? 'Connected' : 'Paused'}</Text><Text style={styles.connS}>Setu Journey · {data.stageTitle}</Text></View>
+              <View style={{ flex: 1 }}><Text style={styles.connT}>{data.connectionStatus === 'active' ? 'Connected' : 'Paused'}</Text><Text style={styles.connS}>Setu Journey Â· {data.stageTitle}</Text></View>
               <Ionicons name="chevron-forward" size={18} color={colors.primary} />
             </Pressable>
             <View style={{ flexDirection: 'row', gap: 10, marginTop: space.md, alignSelf: 'stretch' }}>
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
   connT: { fontFamily: fonts.semibold, fontSize: 14, color: colors.text },
   connS: { fontFamily: fonts.regular, fontSize: 12.5, color: colors.muted },
   link: { fontFamily: fonts.semibold, fontSize: 13, color: colors.primary },
-  day: { alignSelf: 'center', backgroundColor: '#EEF2F7', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 3, marginVertical: 6 },
+  day: { alignSelf: 'center', backgroundColor: 'colors.bgTint', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 3, marginVertical: 6 },
   dayText: { fontFamily: fonts.medium, fontSize: 11.5, color: colors.muted },
   msgRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
   bubble: { maxWidth: '76%' as any, borderRadius: 16, paddingHorizontal: 13, paddingVertical: 9 },

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { Guide, errorMessage } from '../../api';
 import { useAuth } from '../../context/AuthContext';
@@ -81,7 +81,7 @@ export function GuideHistory({ navigation }: any) {
       ) : (
         <Card padded={false}>
           {data.items.map((c, i) => (
-            <ListRow key={c.id} icon="chatbubble-ellipses-outline" tint="purple" title={c.title} subtitle={`${timeAgo(c.updatedAt)} · ${c.messageCount} messages`} onPress={() => navigation.navigate('GuideConversation', { id: c.id })} last={i === data.items.length - 1}
+            <ListRow key={c.id} icon="chatbubble-ellipses-outline" tint="purple" title={c.title} subtitle={`${timeAgo(c.updatedAt)} Â· ${c.messageCount} messages`} onPress={() => navigation.navigate('GuideConversation', { id: c.id })} last={i === data.items.length - 1}
               right={<Button title="Delete" variant="text" size="sm" full={false} onPress={() => setDel(c.id)} />} />
           ))}
         </Card>
@@ -105,8 +105,8 @@ export function GuideConversation({ route, navigation }: any) {
           {data.messages.map((m) => (
             <View key={m.id} style={[styles.bubble, m.role === 'user' ? styles.user : styles.guide]}>
               <Text style={[styles.text, m.role === 'user' && { color: '#fff' }]}>{m.text}</Text>
-              {m.questions?.length ? <View style={{ marginTop: 8, gap: 4 }}>{m.questions.map((q) => <Text key={q} style={styles.text}>• {q}</Text>)}</View> : null}
-              <Text style={[styles.time, m.role === 'user' && { color: '#DCE7FB' }]}>{formatTime(m.at)}</Text>
+              {m.questions?.length ? <View style={{ marginTop: 8, gap: 4 }}>{m.questions.map((q) => <Text key={q} style={styles.text}>â€¢ {q}</Text>)}</View> : null}
+              <Text style={[styles.time, m.role === 'user' && { color: 'colors.surface' }]}>{formatTime(m.at)}</Text>
             </View>
           ))}
         </View>
